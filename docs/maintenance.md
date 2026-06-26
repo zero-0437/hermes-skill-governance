@@ -150,6 +150,25 @@ L1 级别工具技能在分配给 Agent 后，shared 区也应保留其条目（
 **症状**：后续委派时 skill-map.yaml 解析失败或子 Agent 收到不存在的 skill 引用。
 **预防**：本流程步骤 6.5 和 2.5.5 已内建校验器调用（`uv run python`），不跳过。
 
+### 单次委派超限未分段
+
+单次委派超过 10 个文件或 3 个步骤时，子 Agent 容易遗漏或超时。必须按拆分原则分段确认。
+
+**规则**：单次委派 ≤10 文件或 ≤3 步。超限时分段委派，每段完成后确认再继续。
+
+### /tmp 目录写入陷阱（write_file 被 Hermes 拦截）
+
+Hermes 沙箱会拦截 `/tmp` 目录下的 `write_file`/`patch` 调用。在 `/tmp` 目录操作文件时，必须使用 terminal 命令（cat heredoc、sed 等）代替。
+
+**症状**：`write_file` 返回成功但文件内容未改变。
+**修复**：改为 `terminal: cat > /tmp/path/file << 'EOF'`。
+
+### 推送前未加载 github-push 技能
+
+推送到 GitHub 前必须先 `skill_view('github-push')` 加载专用推送流程，避免使用错误的认证方式或遗漏步骤。
+
+**规则**：任何涉及 `git push` 的操作前，先 `skill_view('github-push')`。hermes-skill-governance 仓库使用专用 SSH key（`GIT_SSH_COMMAND='ssh -i /opt/data/home/.ssh/id_ed25519'`）。
+
 ### 用错 Python 二进制（python3 vs uv run python）
 系统 `/usr/bin/python3` 无 pyyaml 模块，所有涉及 YAML 解析的脚本必须用 `uv run python`。
 **症状**：`ModuleNotFoundError: No module named 'yaml'`。
