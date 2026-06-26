@@ -40,7 +40,7 @@ L1 工具技能   ── 单能力封装（任意 Agent 按需加载）
 以 Agent → 分类 → 技能 两层组织，每技能标注 layer 和 load。跨 Agent 技能以逻辑引用出现在多个节点，不复制文件。
 
 ```yaml
-# 322 行 / 9.6KB / 10 Agent + shared 全局区
+# 337 行 / 11.3KB / 10 Agent + shared 全局区
 agents:
   programmer:
     categories:
@@ -115,6 +115,40 @@ skill-map.yaml 的 auto/manual 二分摘要（149 行 / 3.3KB）。主 Agent 委
 **安装**：skill_view → 读 frontmatter → 校验 → 上报主 Agent → file-ops 写 YAML → 刷新缓存 → 同步 SOUL.md → 运行审计器
 
 **删除**：file-ops 删 YAML 条目（含跨 Agent） → 删 SOUL.md → 刷新缓存 → 运行审计器 → grep 确认残留
+
+---
+
+## 本次改进（2026-06-26 v2.3）
+
+> session 修复：全局架构审计 + 15 文件修复 + ref 标注 + 拆分原则 + 缓存规则
+
+### 触发
+
+全量架构审计发现 **46 个潜在问题**，逐项核实后确认为 **6 个确凿冲突**，涉及 15 个文件需修复。
+
+### 改进清单
+
+| # | 改进 | 文件 | 影响 |
+|---|------|------|------|
+| **P0** | SOUL.md 工作流重组 | `pm-agent/SOUL.md` | 接收→决策→确认→交付→铁律→附录，线性可读 |
+| **P0** | skill-map ref 逻辑引用 | `skill-map.yaml` | document-processor/data-analyst/programmer/synology-helper 加 `ref`，消解双注册 |
+| **P1** | agent-environment.md 补齐 | `agent-environment.md` | §3 补齐 4 个 Agent 迭代预算，§8 明确 L1 例外 |
+| **P1** | registry 规范化 | `hermes-team-registry.md` | pm-agent 委派 + error-analyst(6→7)，通信矩阵→规则列表 |
+| **P1** | profile SOUL.md 去重 | 10 个 profile `SOUL.md` | 移除 registry 重复内容，加引用声明 |
+| **P2** | 委派缓存机制 | `/opt/data/.delegation-cache/` | 新增委派缓存 + 24h TTL 自动清理 |
+| **P2** | context 注入规则 | `SOUL.md` | L1/L3 按需匹配，无关不注 |
+| **P2** | 拆分原则 | `SOUL.md` | 单次委派 ≤10 文件或 ≤3 步，超限分段确认 |
+
+### 全局审计摘要
+
+- **46 问题检出** → 逐项核实 → **6 确凿冲突**（其余为误报或设计意图）
+- **15/15 文件修复**：skill-map.yaml + agent-environment.md + registry + 10 profile SOUL.md + SOUL.md + pm-agent/SOUL.md
+- 新增 **ref 逻辑引用**标注，消解 document-processor/programmer/synology-helper 的双注册隐患
+- 新增 **委派缓存** `/opt/data/.delegation-cache/`，24h TTL 自动清理
+
+### 审计状态
+
+**0 ERR / 0 WARN** — 11 维全量审计器通过（修复后重跑确认）。
 
 ---
 
@@ -197,7 +231,7 @@ PM-agent SOUL.md 按工作流重新排序：职责声明 → 上下文纪律 →
 
 | 文件 | 行数 | 用途 |
 |------|:--:|------|
-| `skill-map.yaml` | 322 | Skill 目录树（Agent→分类→技能，v2.2） |
+| `skill-map.yaml` | 337 | Skill 目录树（Agent→分类→技能，v2.3） |
 | `.skill-cache.json` | 157 | JSON 摘要缓存（auto/manual 二分） |
 | `SOUL.md` | 92 | 主 Agent 规则 + 快速索引 + 缓存降级逻辑 |
 | `agent-environment.md` | 115 | 通用规范 §1-§8（四层加载 + 缓存规则） |
@@ -226,4 +260,4 @@ PM-agent SOUL.md 按工作流重新排序：职责声明 → 上下文纪律 →
 
 ---
 
-> 版本 v2.2 | 最后更新 2026-06-26T12:00Z | 纯文件变更，零框架依赖 | 审计状态: **OK** (0 ERR / 0 WARN)
+> 版本 v2.3 | 最后更新 2026-06-26T14:00Z | 纯文件变更，零框架依赖 | 审计状态: **OK** (0 ERR / 0 WARN)

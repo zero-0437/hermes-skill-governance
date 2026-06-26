@@ -24,12 +24,19 @@ agents:
           layer: "4 / load: auto"
         - name: architecture-integrity-check
           layer: "4 / load: manual"
+        - name: skill-creator
+          layer: "4 / load: auto"
+        - name: multi-agent-swarm
+          layer: "3 / load: manual"
       项目管理:
         - name: plan
           layer: "4 / load: auto"
         - name: product-manager
           layer: "3 / load: manual"
         - name: teacher
+          layer: "3 / load: manual"
+      软件工程:
+        - name: superpowers
           layer: "3 / load: manual"
       Hermes_运维:
         - name: hermes-agent
@@ -67,6 +74,8 @@ agents:
           layer: "2 / load: auto"
         - name: spike
           layer: "3 / load: manual"
+        - name: compatibility-audit
+          layer: "1 / load: manual"
       审查:
         - name: requesting-code-review
           layer: "2 / load: auto"
@@ -86,11 +95,15 @@ agents:
           layer: "1 / load: manual"
         - name: github-search
           layer: "1 / load: manual"
+        - name: engineering-git-workflow-master
+          layer: "1 / load: manual"
       调试:
         - name: node-inspect-debugger
           layer: "1 / load: manual"
+          ref: shared.调试.node-inspect-debugger
         - name: python-debugpy
           layer: "1 / load: manual"
+          ref: shared.调试.python-debugpy
       委派工具:
         - name: claude-code
           layer: "1 / load: manual"
@@ -138,13 +151,16 @@ agents:
       搜索通道:
         - name: github-search
           layer: "1 / load: manual"
+          ref: shared.搜索.github-search
         - name: maps
           layer: "1 / load: manual"
+          ref: shared.搜索.maps
         - name: xurl
           layer: "1 / load: manual"
       数据源:
         - name: arxiv
           layer: "1 / load: manual"
+          ref: shared.搜索.arxiv
         - name: blogwatcher
           layer: "1 / load: manual"
         - name: polymarket
@@ -194,23 +210,34 @@ agents:
     description: "文档处理与转换 — 格式转换+公文排版"
     categories:
       文档转换:
+        # 以下 L1 工具技能继承自 shared.文档 区（load 覆盖为 auto）
         - name: pdf
           layer: "1 / load: auto"
+          ref: shared.文档.pdf
         - name: docx
           layer: "1 / load: auto"
+          ref: shared.文档.docx
         - name: xlsx
           layer: "1 / load: auto"
+          ref: shared.文档.xlsx
         - name: pptx
           layer: "1 / load: auto"
+          ref: shared.文档.pptx
         - name: markitdown
           layer: "1 / load: auto"
+          ref: shared.文档.markitdown
         - name: ocr-and-documents
           layer: "1 / load: manual"
+          ref: shared.文档.ocr-and-documents
       写作:
         - name: doc-coauthoring
           layer: "3 / load: manual"
         - name: civil-servant
           layer: "3 / load: manual"
+        - name: engineering-technical-writer
+          layer: "3 / load: manual"
+        - name: humanizer-zh
+          layer: "1 / load: manual"
 
   file-ops:
     description: "文件操作专员 — 读写/备份/SSH，不执行代码"
@@ -220,6 +247,8 @@ agents:
           layer: "1 / load: manual"
           intentional: true  # 在 file-ops 是按需工具，在 synology-helper 是角色技能
         - name: ssh-remote-access
+          layer: "1 / load: manual"
+        - name: github-push
           layer: "1 / load: manual"
       文件优化:
         - name: token-efficient-file-ops
@@ -234,6 +263,7 @@ agents:
           intentional: true  # 在 synology-helper 是角色技能，在 file-ops 是按需工具
         - name: ssh-remote-access
           layer: "1 / load: manual"
+          ref: shared.远程.ssh-remote-access
       备份:
         - name: architecture-backup
           layer: "2 / load: auto"
