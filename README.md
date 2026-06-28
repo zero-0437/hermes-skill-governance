@@ -133,7 +133,6 @@ skill-map.yaml 的 auto/manual 二分摘要（149 行 / 3.3KB）。主 Agent 委
 | **P0** | SOUL.md 工作流重组 | `pm-agent/SOUL.md` | 接收→决策→确认→交付→铁律→附录，线性可读 |
 | **P0** | skill-map ref 逻辑引用 | `skill-map.yaml` | document-processor/data-analyst/programmer/synology-helper 加 `ref`，消解双注册 |
 | **P1** | agent-environment.md 补齐 | `agent-environment.md` | §3 补齐 4 个 Agent 迭代预算，§8 明确 L1 例外 |
-| **P1** | registry 规范化 | `hermes-team-registry.md` | pm-agent 委派 + error-analyst(6→7)，通信矩阵→规则列表 |
 | **P1** | profile SOUL.md 去重 | 10 个 profile `SOUL.md` | 移除 registry 重复内容，加引用声明 |
 | **P2** | 委派缓存机制 | `/opt/data/.delegation-cache/` | 新增委派缓存 + 24h TTL 自动清理 |
 | **P2** | context 注入规则 | `SOUL.md` | L1/L3 按需匹配，无关不注 |
@@ -251,7 +250,6 @@ PM-agent SOUL.md 按工作流重新排序：职责声明 → 上下文纪律 →
 | `validate-skill-map.py` | 309 | 11 维全量审计器 |
 | `rebuild-cache.py` | 60 | 缓存重建脚本 |
 | `validate-skill-map-cron.sh` | 4 | cron wrapper |
-| `hermes-team-registry.md` | 143 | Agent 角色单源注册表 |
 | `commands.md` | 95 | 命令速查 |
 | **合计** | **1,596** | |
 
