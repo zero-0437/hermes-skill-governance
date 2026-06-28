@@ -2,12 +2,12 @@
 # 每个 Skill 含 layer(1-4) 和 load(auto/manual)
 # L1 工具 / L2 角色 / L3 领域 / L4 元
 # 跨 Agent 技能以逻辑引用出现在多个节点，各设独立 layer/load
-schema_version: "2.0"
-last_updated: "2026-06-26T11:30:00Z"
+schema_version: "2.5"
+last_updated: "2026-06-28T08:19:18Z"
 maintainer: pm-agent
 
 # ═══════════════════════════════════════════
-# Agent 目录树（10 Agent + shared 全局区）
+# Agent 目录树（11 Agent + shared 全局区）
 # ═══════════════════════════════════════════
 
 agents:
@@ -265,7 +265,7 @@ agents:
           layer: "1 / load: manual"
           ref: shared.远程.ssh-remote-access
       备份:
-        - name: architecture-backup
+        - name: hermes-full-backup
           layer: "2 / load: auto"
       维护:
         - name: hermes-maintenance
@@ -286,6 +286,13 @@ agents:
     categories:
       Prompt:
         - name: engineering-prompt-engineer
+          layer: "2 / load: auto"
+
+  reality-checker:
+    description: "集成测试与现实检验 — 阻止幻想式审批，要求压倒性证据"
+    categories:
+      测试:
+        - name: dogfood
           layer: "2 / load: auto"
 
 # ═══════════════════════════════════════════
@@ -334,4 +341,7 @@ shared:
       - name: node-inspect-debugger
         layer: "1 / load: manual"
       - name: python-debugpy
+        layer: "1 / load: manual"
+    备份:
+      - name: hermes-light-backup
         layer: "1 / load: manual"

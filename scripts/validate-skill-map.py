@@ -26,7 +26,6 @@ CACHE        = '/opt/data/.skill-cache.json'
 SKILLS_DIR   = '/opt/data/skills'
 AGENTS_DIR   = '/opt/data/profiles'
 SOUL_MD      = '/opt/data/SOUL.md'
-REGISTRY     = '/opt/data/hermes-team-registry.md'
 ENV_MD       = '/opt/data/contexts/agent-environment.md'
 
 EXIT_OK, EXIT_WARN, EXIT_ERR = 0, 1, 2
@@ -119,12 +118,24 @@ def check_cache(agents_data):
     if extra := cache_agents - yaml_agents:
         warn(f"缓存多余 Agent: {extra}")
 
+    # 从 skill-map.yaml 读取 shared 全局技能（与 rebuild-cache.py 对齐）
+    with open(SKILL_MAP) as f:
+        full_data = yaml.safe_load(f)
+    shared_cats = full_data.get('shared', {}).get('categories', {})
+    shared_manual = set()
+    for cat, skills in shared_cats.items():
+        for s in skills:
+            load = s['layer'].split('/')[-1].strip().split(':')[-1].strip()
+            shared_manual.add(s['name'])
+
     for agent in yaml_agents & cache_agents:
         yaml_auto, yaml_manual = set(), set()
         for cat, skills in agents_data[agent].get('categories', {}).items():
             for s in skills:
                 load = s['layer'].split('/')[-1].strip().split(':')[-1].strip()
                 (yaml_auto if load == 'auto' else yaml_manual).add(s['name'])
+        # 合并 shared 全局技能（对标 rebuild-cache.py 的行为）
+        yaml_manual |= shared_manual
         cache_auto   = set(cache['agents'][agent].get('auto', []))
         cache_manual = set(cache['agents'][agent].get('manual', []))
         if yaml_auto != cache_auto or yaml_manual != cache_manual:
@@ -202,21 +213,7 @@ def check_agent_souls(agents_data):
             err(f"Agent SOUL.md 缺失: {agent}")
 
 
-# ═══════════ 9. Registry 对齐 ═══════════
-def check_registry(agents_data):
-    if not os.path.exists(REGISTRY):
-        warn("registry 不存在")
-        return
-    with open(REGISTRY) as f:
-        reg = f.read()
-    yaml_agents = set(agents_data.keys())
-    reg_agents = {a for a in yaml_agents if a in reg}
-    missing = yaml_agents - reg_agents
-    if missing:
-        warn(f"Registry 中未找到: {missing}")
-
-
-# ═══════════ 10. 孤儿技能 (INFO) ═══════════
+# ═══════════ 9. 孤儿技能 (INFO) ═══════════
 def check_orphans(agents_data):
     # 收集所有已注册技能名
     registered = set()
@@ -281,7 +278,6 @@ def main():
     check_cache(agents_data)
     check_binding_table(agents_data)
     check_agent_souls(agents_data)
-    check_registry(agents_data)
     check_orphans(agents_data)
     check_env_doc()
 

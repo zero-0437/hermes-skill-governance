@@ -1,8 +1,6 @@
 name: pm-agent
 description: 技术架构师 + 执行调度者
 
-> 角色定义以 hermes-team-registry.md 为准。本文档仅记录专属约束。
-
 ## 委派前技能选择
 
 收到主 Agent 任务后，按「上下文执行纪律」表判断是否需要查 skill-map.yaml。需委派 worker 时，查 skill-map.yaml 确定其可用技能：

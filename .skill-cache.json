@@ -1,0 +1,356 @@
+{
+  "schema_version": "2.5",
+  "cache_version": 1,
+  "ttl_minutes": 30,
+  "last_updated": "2026-06-28T08:34:02Z",
+  "agents": {
+    "pm-agent": {
+      "role": "技术架构师 + 执行调度者 — 方案设计→任务拆解→委派→闭环汇报",
+      "auto": [
+        "multi-agent-arch",
+        "delegation-multi-agent",
+        "skill-map-maintenance",
+        "skill-creator",
+        "plan",
+        "engineering-software-architect",
+        "engineering-multi-agent-systems-architect"
+      ],
+      "manual": [
+        "architecture-integrity-check",
+        "multi-agent-swarm",
+        "product-manager",
+        "teacher",
+        "superpowers",
+        "hermes-agent",
+        "hermes-multi-agent-profiles",
+        "hermes-multi-agent-setup",
+        "hermes-subagent-profile",
+        "multi-agent-profile-setup",
+        "agent-delegation-setup",
+        "hermes-agent-skill-authoring",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "programmer": {
+      "role": "代码编写与调试 — 按 TDD 纪律交付可工作代码",
+      "auto": [
+        "test-driven-development",
+        "systematic-debugging",
+        "simplify-code",
+        "engineering-minimal-change-engineer",
+        "requesting-code-review"
+      ],
+      "manual": [
+        "spike",
+        "compatibility-audit",
+        "codebase-inspection",
+        "github-code-review",
+        "github-auth",
+        "github-issues",
+        "github-pr-workflow",
+        "github-repo-management",
+        "github-search",
+        "engineering-git-workflow-master",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "claude-code",
+        "codex",
+        "opencode",
+        "hermes-agent-skill-authoring",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "hermes-light-backup"
+      ]
+    },
+    "error-analyst": {
+      "role": "错误诊断 + 代码审查 — 只读分析，不执行修改",
+      "auto": [
+        "systematic-debugging",
+        "codebase-inspection",
+        "requesting-code-review",
+        "engineering-sre",
+        "postmortem-analyst"
+      ],
+      "manual": [
+        "network-debugging",
+        "github-code-review",
+        "engineering-security-engineer",
+        "engineering-incident-response-commander",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "data-analyst": {
+      "role": "数据搜索与分析 — 多渠道信息检索，先判再搜",
+      "auto": [
+        "search-backend-evaluation"
+      ],
+      "manual": [
+        "github-search",
+        "maps",
+        "xurl",
+        "arxiv",
+        "blogwatcher",
+        "polymarket",
+        "llm-wiki",
+        "youtube-content",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "ui-designer": {
+      "role": "前端与视觉设计 — 设计实现+创意生成",
+      "auto": [
+        "frontend-design"
+      ],
+      "manual": [
+        "taste-skill",
+        "popular-web-designs",
+        "claude-design",
+        "sketch",
+        "pretext",
+        "architecture-diagram",
+        "baoyu-infographic",
+        "excalidraw",
+        "p5js",
+        "design-md",
+        "touchdesigner-mcp",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "document-processor": {
+      "role": "文档处理与转换 — 格式转换+公文排版",
+      "auto": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown"
+      ],
+      "manual": [
+        "ocr-and-documents",
+        "doc-coauthoring",
+        "civil-servant",
+        "engineering-technical-writer",
+        "humanizer-zh",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "file-ops": {
+      "role": "文件操作专员 — 读写/备份/SSH，不执行代码",
+      "auto": [
+        "token-efficient-file-ops"
+      ],
+      "manual": [
+        "ssh-172",
+        "ssh-remote-access",
+        "github-push",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "synology-helper": {
+      "role": "群晖 NAS 运维 — SSH 命令+架构备份",
+      "auto": [
+        "ssh-172",
+        "hermes-full-backup"
+      ],
+      "manual": [
+        "ssh-remote-access",
+        "hermes-maintenance",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "memory-agent": {
+      "role": "记忆与知识管理 — 会话检索+知识库维护",
+      "auto": [
+        "llm-wiki",
+        "obsidian"
+      ],
+      "manual": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "prompt-engineer": {
+      "role": "Prompt 工程 — SOUL.md 审计+Prompt 优化",
+      "auto": [
+        "engineering-prompt-engineer"
+      ],
+      "manual": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "reality-checker": {
+      "role": "集成测试与现实检验 — 阻止幻想式审批，要求压倒性证据",
+      "auto": [
+        "dogfood"
+      ],
+      "manual": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    }
+  }
+}
