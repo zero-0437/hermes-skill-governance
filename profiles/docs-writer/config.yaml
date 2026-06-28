@@ -1,0 +1,30 @@
+model: deepseek-v4-pro
+providers: {}
+agent:
+  max_turns: 45
+  tool_use_enforcement: auto
+  task_completion_guidance: true
+  parallel_tool_call_guidance: true
+terminal:
+  backend: local
+  timeout: 180
+  persistent_shell: true
+toolsets:
+  - terminal
+  - file
+  - web
+compression:
+  enabled: true
+  threshold: 0.5
+  target_ratio: 0.2
+approvals:
+  mode: smart
+security:
+  redact_secrets: true
+  tirith_enabled: true
+display:
+  language: zh
+  show_reasoning: false
+  streaming: false
+  final_response_markdown: strip
+timezone: Asia/Shanghai

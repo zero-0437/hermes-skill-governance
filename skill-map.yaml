@@ -236,8 +236,10 @@ agents:
           layer: "3 / load: manual"
         - name: engineering-technical-writer
           layer: "3 / load: manual"
+          intentional: true
         - name: humanizer-zh
           layer: "1 / load: manual"
+          intentional: true
 
   file-ops:
     description: "文件操作专员 — 读写/备份/SSH，不执行代码"
@@ -294,6 +296,20 @@ agents:
       测试:
         - name: dogfood
           layer: "2 / load: auto"
+
+  docs-writer:
+    description: "技术文档工程师 — README/API参考/教程/概念指南写作，docs-as-code 基础设施"
+    categories:
+      文档工程:
+        - name: engineering-technical-writer
+          layer: "2 / load: auto"
+          intentional: true
+      写作工具:
+        - name: doc-coauthoring
+          layer: "3 / load: manual"
+        - name: humanizer-zh
+          layer: "3 / load: manual"
+          intentional: true
 
 # ═══════════════════════════════════════════
 # 全局 L1 工具（所有 Agent 按需加载）

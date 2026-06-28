@@ -2,7 +2,7 @@
   "schema_version": "2.5",
   "cache_version": 1,
   "ttl_minutes": 30,
-  "last_updated": "2026-06-28T08:34:02Z",
+  "last_updated": "2026-06-28T11:44:01Z",
   "agents": {
     "pm-agent": {
       "role": "技术架构师 + 执行调度者 — 方案设计→任务拆解→委派→闭环汇报",
@@ -332,6 +332,34 @@
         "dogfood"
       ],
       "manual": [
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "github-search",
+        "maps",
+        "arxiv",
+        "ssh-172",
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "hermes-light-backup"
+      ]
+    },
+    "docs-writer": {
+      "role": "技术文档工程师 — README/API参考/教程/概念指南写作，docs-as-code 基础设施",
+      "auto": [
+        "engineering-technical-writer"
+      ],
+      "manual": [
+        "doc-coauthoring",
+        "humanizer-zh",
         "pdf",
         "docx",
         "xlsx",
