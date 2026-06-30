@@ -1,0 +1,360 @@
+{
+  "schema_version": "2.5",
+  "last_updated": "2026-06-30T14:55:51Z",
+  "cache_version": 1,
+  "agents": {
+    "data-analyst": {
+      "file": "routes/data-analyst.yaml",
+      "mtime": 1782791893.4234846,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(search|find|research|analyze|investigate|report|arxiv)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        }
+      ]
+    },
+    "docs-writer": {
+      "file": "routes/docs-writer.yaml",
+      "mtime": 1782795682.5248415,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "API.*参考",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(usage|installation|getting\\.started|quickstart|changelog|contributing)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(OCR)\\b",
+          "weight": -0.3,
+          "is_valid": true
+        }
+      ]
+    },
+    "document-processor": {
+      "file": "routes/document-processor.yaml",
+      "mtime": 1782791901.0918982,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(PDF|Word|Excel|PPT|OCR)\\b",
+          "weight": 0.9,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(docx)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "pdf.*导出",
+          "weight": 0.8,
+          "is_valid": true
+        }
+      ]
+    },
+    "error-analyst": {
+      "file": "routes/error-analyst.yaml",
+      "mtime": 1782795733.7706063,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(panic|segfault|OOM|diagnose|debug|error|exception|crash)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(postmortem)\\b",
+          "weight": 0.9,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(audit|review|vulnerability|risk)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "(编译错误|构建失败|build fail|import.*fail|modulenotfound|permission denied)",
+          "weight": 1.0,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "(pip install|uv.*install|安装.*失败|依赖.*问题)",
+          "weight": 0.9,
+          "is_valid": true
+        }
+      ]
+    },
+    "file-ops": {
+      "file": "routes/file-ops.yaml",
+      "mtime": 1782795732.2525244,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(git.*push|push.*git|scp|rsync|ssh.*connect)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(shell)\\b",
+          "weight": 0.5,
+          "is_valid": true
+        }
+      ]
+    },
+    "memory-agent": {
+      "file": "routes/memory-agent.yaml",
+      "mtime": 1782790289.4880056,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(Obsidian|llm.*wiki|wiki.*query)\\b",
+          "weight": 0.9,
+          "is_valid": true
+        }
+      ]
+    },
+    "pm-agent": {
+      "file": "routes/pm-agent.yaml",
+      "mtime": 1782816551.3168118,
+      "compiled_rules": []
+    },
+    "programmer": {
+      "file": "routes/programmer.yaml",
+      "mtime": 1782816551.355814,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "写.*(代码|code)",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(implement)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(bug)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(fix)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(refactor)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(TDD)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(write.*test)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(commit|push|PR|pull\\.request)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(install)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(build)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(compile)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(python|javascript|typescript|golang|rust|java|c\\+\\+|shell|bash|makefile)\\b",
+          "weight": 0.6,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\\\b(NAS|Prompt)\\\\b",
+          "weight": -0.5,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(route-map)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(skill-map)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(validate)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(rebuild.*cache)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "新增.*Agent",
+          "weight": 0.9,
+          "is_valid": true
+        }
+      ]
+    },
+    "prompt-engineer": {
+      "file": "routes/prompt-engineer.yaml",
+      "mtime": 1782791900.6508744,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(Prompt|system.*prompt|instruction|role.*prompt)\\b",
+          "weight": 1.0,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(instruction.*tuning|few.*shot|chain.*of.*thought|COT)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        }
+      ]
+    },
+    "reality-checker": {
+      "file": "routes/reality-checker.yaml",
+      "mtime": 1782791901.1629019,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(dogfood|e2e|end.to.end|smoke.*test|verification|validation)\\b",
+          "weight": 0.9,
+          "is_valid": true
+        }
+      ]
+    },
+    "synology-helper": {
+      "file": "routes/synology-helper.yaml",
+      "mtime": 1782791900.4488635,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(NAS|synology|diskstation|DSM|RAID)\\b",
+          "weight": 1.0,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "ssh.*172|172\\..*\\..*\\..*|hermes.*backup",
+          "weight": 0.9,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(QuickConnect)\\b",
+          "weight": 0.7,
+          "is_valid": true
+        }
+      ]
+    },
+    "ui-designer": {
+      "file": "routes/ui-designer.yaml",
+      "mtime": 1782795720.846909,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(UI|UX)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "设计.*界面",
+          "weight": 0.8,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(mockup|figma|sketch)\\b",
+          "weight": 0.9,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "设计.*原型",
+          "weight": 0.9,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(css|html|react|vue)\\b",
+          "weight": 0.6,
+          "is_valid": true
+        },
+        {
+          "type": "regex",
+          "pattern": "\\b(infographic|banner)\\b",
+          "weight": 0.8,
+          "is_valid": true
+        }
+      ]
+    },
+    "spec-agent": {
+      "file": "routes/spec-agent.yaml",
+      "mtime": 1782830583.03248,
+      "compiled_rules": [
+        {
+          "type": "regex",
+          "pattern": "\\b(new project|new feature|implement|create|build|make)\\b",
+          "weight": 0.9,
+          "is_valid": true
+        }
+      ]
+    }
+  }
+}

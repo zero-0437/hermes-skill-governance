@@ -1,363 +1,365 @@
-# skill-map.yaml — Skill 目录树（v2.0）
-# 每个 Skill 含 layer(1-4) 和 load(auto/manual)
-# L1 工具 / L2 角色 / L3 领域 / L4 元
-# 跨 Agent 技能以逻辑引用出现在多个节点，各设独立 layer/load
-schema_version: "2.5"
-last_updated: "2026-06-28T08:19:18Z"
-maintainer: pm-agent
-
-# ═══════════════════════════════════════════
-# Agent 目录树（11 Agent + shared 全局区）
-# ═══════════════════════════════════════════
-
 agents:
-  # ─── 调度层 ───
-  pm-agent:
-    description: "技术架构师 + 执行调度者 — 方案设计→任务拆解→委派→闭环汇报"
-    categories:
-      架构治理:
-        - name: multi-agent-arch
-          layer: "4 / load: auto"
-        - name: delegation-multi-agent
-          layer: "4 / load: auto"
-        - name: skill-map-maintenance
-          layer: "4 / load: auto"
-        - name: architecture-integrity-check
-          layer: "4 / load: manual"
-        - name: skill-creator
-          layer: "4 / load: auto"
-        - name: multi-agent-swarm
-          layer: "3 / load: manual"
-      项目管理:
-        - name: plan
-          layer: "4 / load: auto"
-        - name: product-manager
-          layer: "3 / load: manual"
-        - name: teacher
-          layer: "3 / load: manual"
-      软件工程:
-        - name: superpowers
-          layer: "3 / load: manual"
-      Hermes_运维:
-        - name: hermes-agent
-          layer: "3 / load: manual"
-        - name: hermes-multi-agent-profiles
-          layer: "3 / load: manual"
-        - name: hermes-multi-agent-setup
-          layer: "3 / load: manual"
-        - name: hermes-subagent-profile
-          layer: "3 / load: manual"
-        - name: multi-agent-profile-setup
-          layer: "3 / load: manual"
-        - name: agent-delegation-setup
-          layer: "3 / load: manual"
-        - name: hermes-agent-skill-authoring
-          layer: "3 / load: manual"
-      系统设计:
-        - name: engineering-software-architect
-          layer: "2 / load: auto"
-        - name: engineering-multi-agent-systems-architect
-          layer: "2 / load: auto"
-
-  # ─── 执行层 ───
-  programmer:
-    description: "代码编写与调试 — 按 TDD 纪律交付可工作代码"
-    categories:
-      方法论:
-        - name: test-driven-development
-          layer: "2 / load: auto"
-        - name: systematic-debugging
-          layer: "2 / load: auto"
-        - name: simplify-code
-          layer: "2 / load: auto"
-        - name: engineering-minimal-change-engineer
-          layer: "2 / load: auto"
-        - name: spike
-          layer: "3 / load: manual"
-        - name: compatibility-audit
-          layer: "1 / load: manual"
-      审查:
-        - name: requesting-code-review
-          layer: "2 / load: auto"
-        - name: codebase-inspection
-          layer: "3 / load: manual"
-          intentional: true  # 在 programmer 是审查工具，在 error-analyst 是诊断必备
-        - name: github-code-review
-          layer: "3 / load: manual"
-      Git_GitHub:
-        - name: github-auth
-          layer: "1 / load: manual"
-        - name: github-issues
-          layer: "1 / load: manual"
-        - name: github-pr-workflow
-          layer: "1 / load: manual"
-        - name: github-repo-management
-          layer: "1 / load: manual"
-        - name: github-search
-          layer: "1 / load: manual"
-        - name: engineering-git-workflow-master
-          layer: "1 / load: manual"
-      调试:
-        - name: node-inspect-debugger
-          layer: "1 / load: manual"
-          ref: shared.调试.node-inspect-debugger
-        - name: python-debugpy
-          layer: "1 / load: manual"
-          ref: shared.调试.python-debugpy
-      委派工具:
-        - name: claude-code
-          layer: "1 / load: manual"
-        - name: codex
-          layer: "1 / load: manual"
-        - name: opencode
-          layer: "1 / load: manual"
-      技能创作:
-        - name: hermes-agent-skill-authoring
-          layer: "3 / load: manual"
-
-  error-analyst:
-    description: "错误诊断 + 代码审查 — 只读分析，不执行修改"
-    categories:
-      诊断:
-        - name: systematic-debugging
-          layer: "2 / load: auto"
-        - name: codebase-inspection
-          layer: "2 / load: auto"
-          intentional: true  # 在 error-analyst 是诊断必备，在 programmer 是审查工具
-        - name: network-debugging
-          layer: "1 / load: manual"
-      审查:
-        - name: requesting-code-review
-          layer: "2 / load: auto"
-        - name: github-code-review
-          layer: "3 / load: manual"
-      可靠性:
-        - name: engineering-sre
-          layer: "2 / load: auto"
-        - name: engineering-security-engineer
-          layer: "3 / load: manual"
-        - name: engineering-incident-response-commander
-          layer: "3 / load: manual"
-      复盘:
-        - name: postmortem-analyst
-          layer: "2 / load: auto"
-
   data-analyst:
-    description: "数据搜索与分析 — 多渠道信息检索，先判再搜"
     categories:
-      分析方法:
-        - name: search-backend-evaluation
-          layer: "2 / load: auto"
-      搜索通道:
-        - name: github-search
-          layer: "1 / load: manual"
-          ref: shared.搜索.github-search
-        - name: maps
-          layer: "1 / load: manual"
-          ref: shared.搜索.maps
-        - name: xurl
-          layer: "1 / load: manual"
-      数据源:
-        - name: arxiv
-          layer: "1 / load: manual"
-          ref: shared.搜索.arxiv
-        - name: blogwatcher
-          layer: "1 / load: manual"
-        - name: polymarket
-          layer: "1 / load: manual"
-        - name: llm-wiki
-          layer: "1 / load: manual"
-          intentional: true  # 在 data-analyst 是按需工具，在 memory-agent 是角色技能
-        - name: youtube-content
-          layer: "1 / load: manual"
       分析工具:
-        - name: jupyter-live-kernel
-          layer: "1 / load: manual"
-
-  ui-designer:
-    description: "前端与视觉设计 — 设计实现+创意生成"
+      - layer: '1 / load: manual'
+        name: jupyter-live-kernel
+      分析方法:
+      - layer: '2 / load: auto'
+        name: search-backend-evaluation
+      搜索通道:
+      - layer: '1 / load: manual'
+        name: github-search
+        ref: shared.搜索.github-search
+      - layer: '1 / load: manual'
+        name: maps
+        ref: shared.搜索.maps
+      - layer: '1 / load: manual'
+        name: xurl
+      数据源:
+      - layer: '1 / load: manual'
+        name: arxiv
+        ref: shared.搜索.arxiv
+      - layer: '1 / load: manual'
+        name: blogwatcher
+      - layer: '1 / load: manual'
+        name: polymarket
+      - intentional: true
+        layer: '1 / load: manual'
+        name: llm-wiki
+      - layer: '1 / load: manual'
+        name: youtube-content
+    description: 数据搜索与分析 — 多渠道信息检索，先判再搜
+  docs-writer:
     categories:
-      设计方法:
-        - name: frontend-design
-          layer: "2 / load: auto"
-        - name: taste-skill
-          layer: "3 / load: manual"
-      设计实现:
-        - name: popular-web-designs
-          layer: "3 / load: manual"
-        - name: claude-design
-          layer: "3 / load: manual"
-        - name: sketch
-          layer: "3 / load: manual"
-        - name: pretext
-          layer: "3 / load: manual"
-      可视化:
-        - name: architecture-diagram
-          layer: "1 / load: manual"
-        - name: baoyu-infographic
-          layer: "3 / load: manual"
-        - name: excalidraw
-          layer: "1 / load: manual"
-      创意编码:
-        - name: p5js
-          layer: "1 / load: manual"
-        - name: design-md
-          layer: "3 / load: manual"
-        - name: touchdesigner-mcp
-          layer: "1 / load: manual"
-
+      写作工具:
+      - layer: '3 / load: manual'
+        name: doc-coauthoring
+      - intentional: true
+        layer: '3 / load: manual'
+        name: humanizer-zh
+      文档工程:
+      - intentional: true
+        layer: '2 / load: auto'
+        name: engineering-technical-writer
+    description: 技术文档工程师 — README/API参考/教程/概念指南写作，docs-as-code 基础设施
   document-processor:
-    description: "文档处理与转换 — 格式转换+公文排版"
     categories:
-      文档转换:
-        # 以下 L1 工具技能继承自 shared.文档 区（load 覆盖为 auto）
-        - name: pdf
-          layer: "1 / load: auto"
-          ref: shared.文档.pdf
-        - name: docx
-          layer: "1 / load: auto"
-          ref: shared.文档.docx
-        - name: xlsx
-          layer: "1 / load: auto"
-          ref: shared.文档.xlsx
-        - name: pptx
-          layer: "1 / load: auto"
-          ref: shared.文档.pptx
-        - name: markitdown
-          layer: "1 / load: auto"
-          ref: shared.文档.markitdown
-        - name: ocr-and-documents
-          layer: "1 / load: manual"
-          ref: shared.文档.ocr-and-documents
       写作:
-        - name: doc-coauthoring
-          layer: "3 / load: manual"
-        - name: civil-servant
-          layer: "3 / load: manual"
-        - name: engineering-technical-writer
-          layer: "3 / load: manual"
-          intentional: true
-        - name: humanizer-zh
-          layer: "1 / load: manual"
-          intentional: true
-
+      - layer: '3 / load: manual'
+        name: doc-coauthoring
+      - layer: '3 / load: manual'
+        name: civil-servant
+      - intentional: true
+        layer: '3 / load: manual'
+        name: engineering-technical-writer
+      - intentional: true
+        layer: '1 / load: manual'
+        name: humanizer-zh
+      文档转换:
+      - layer: '1 / load: auto'
+        name: pdf
+        ref: shared.文档.pdf
+      - layer: '1 / load: auto'
+        name: docx
+        ref: shared.文档.docx
+      - layer: '1 / load: auto'
+        name: xlsx
+        ref: shared.文档.xlsx
+      - layer: '1 / load: auto'
+        name: pptx
+        ref: shared.文档.pptx
+      - layer: '1 / load: auto'
+        name: markitdown
+        ref: shared.文档.markitdown
+      - layer: '1 / load: manual'
+        name: ocr-and-documents
+        ref: shared.文档.ocr-and-documents
+    description: 文档处理与转换 — 格式转换+公文排版
+  error-analyst:
+    categories:
+      可靠性:
+      - layer: '2 / load: auto'
+        name: engineering-sre
+      - layer: '3 / load: manual'
+        name: engineering-security-engineer
+      - layer: '3 / load: manual'
+        name: engineering-incident-response-commander
+      复盘:
+      - layer: '2 / load: auto'
+        name: postmortem-analyst
+      审查:
+      - layer: '2 / load: auto'
+        name: requesting-code-review
+      - layer: '3 / load: manual'
+        name: github-code-review
+      诊断:
+      - layer: '2 / load: auto'
+        name: systematic-debugging
+      - intentional: true
+        layer: '2 / load: auto'
+        name: codebase-inspection
+      - layer: '1 / load: manual'
+        name: network-debugging
+    description: 错误诊断 + 代码审查 — 只读分析，不执行修改
   file-ops:
-    description: "文件操作专员 — 读写/备份/SSH，不执行代码"
     categories:
-      远程操作:
-        - name: ssh-172
-          layer: "1 / load: manual"
-          intentional: true  # 在 file-ops 是按需工具，在 synology-helper 是角色技能
-        - name: ssh-remote-access
-          layer: "1 / load: manual"
-        - name: github-push
-          layer: "1 / load: manual"
       文件优化:
-        - name: token-efficient-file-ops
-          layer: "1 / load: auto"
-
-  synology-helper:
-    description: "群晖 NAS 运维 — SSH 命令+架构备份"
-    categories:
+      - layer: '1 / load: auto'
+        name: token-efficient-file-ops
       远程操作:
-        - name: ssh-172
-          layer: "2 / load: auto"
-          intentional: true  # 在 synology-helper 是角色技能，在 file-ops 是按需工具
-        - name: ssh-remote-access
-          layer: "1 / load: manual"
-          ref: shared.远程.ssh-remote-access
-      备份:
-        - name: hermes-full-backup
-          layer: "2 / load: auto"
-      维护:
-        - name: hermes-maintenance
-          layer: "1 / load: manual"
-
+      - intentional: true
+        layer: '1 / load: manual'
+        name: ssh-172
+      - layer: '1 / load: manual'
+        name: ssh-remote-access
+      - layer: '1 / load: manual'
+        name: github-push
+    description: 文件操作专员 — 读写/备份/SSH，不执行代码
   memory-agent:
-    description: "记忆与知识管理 — 会话检索+知识库维护"
     categories:
       记忆:
-        - name: llm-wiki
-          layer: "2 / load: auto"
-          intentional: true  # 在 memory-agent 是角色技能，在 data-analyst 是按需工具
-        - name: obsidian
-          layer: "2 / load: auto"
-
+      - intentional: true
+        layer: '2 / load: auto'
+        name: llm-wiki
+      - layer: '2 / load: auto'
+        name: obsidian
+    description: 记忆与知识管理 — 会话检索+知识库维护
+  pm-agent:
+    categories:
+      Hermes_运维:
+      - layer: '3 / load: manual'
+        name: hermes-agent
+      - layer: '3 / load: manual'
+        name: hermes-multi-agent-profiles
+      - layer: '3 / load: manual'
+        name: hermes-multi-agent-setup
+      - layer: '3 / load: manual'
+        name: hermes-subagent-profile
+      - layer: '3 / load: manual'
+        name: multi-agent-profile-setup
+      - layer: '3 / load: manual'
+        name: agent-delegation-setup
+      - layer: '3 / load: manual'
+        name: hermes-agent-skill-authoring
+      架构治理:
+      - layer: '4 / load: auto'
+        name: multi-agent-arch
+      - layer: '4 / load: auto'
+        name: delegation-multi-agent
+      - layer: '4 / load: auto'
+        name: skill-map-maintenance
+      - layer: '4 / load: manual'
+        name: architecture-integrity-check
+      - layer: '4 / load: auto'
+        name: skill-creator
+      - layer: '3 / load: manual'
+        name: multi-agent-swarm
+      - layer: '4 / load: manual'
+        name: 自检测
+      系统设计:
+      - layer: '2 / load: auto'
+        name: engineering-software-architect
+      - layer: '2 / load: auto'
+        name: engineering-multi-agent-systems-architect
+      软件工程:
+      - layer: '3 / load: manual'
+        name: superpowers
+      项目管理:
+      - layer: '4 / load: auto'
+        name: plan
+      - layer: '3 / load: manual'
+        name: product-manager
+      - layer: '3 / load: manual'
+        name: teacher
+    description: 技术架构师 + 执行调度者 — 方案设计→任务拆解→委派→闭环汇报
+  programmer:
+    categories:
+      Git_GitHub:
+      - layer: '1 / load: manual'
+        name: github-auth
+      - layer: '1 / load: manual'
+        name: github-issues
+      - layer: '1 / load: manual'
+        name: github-pr-workflow
+      - layer: '1 / load: manual'
+        name: github-repo-management
+      - layer: '1 / load: manual'
+        name: github-search
+      - layer: '1 / load: manual'
+        name: engineering-git-workflow-master
+      - layer: '1 / load: manual'
+        name: resolving-merge-conflicts
+      委派工具:
+      - layer: '1 / load: manual'
+        name: claude-code
+      - layer: '1 / load: manual'
+        name: codex
+      - layer: '1 / load: manual'
+        name: opencode
+      审查:
+      - layer: '2 / load: auto'
+        name: requesting-code-review
+      - intentional: true
+        layer: '3 / load: manual'
+        name: codebase-inspection
+      - layer: '3 / load: manual'
+        name: github-code-review
+      技能创作:
+      - layer: '3 / load: manual'
+        name: hermes-agent-skill-authoring
+      方法论:
+      - layer: '2 / load: auto'
+        name: test-driven-development
+      - layer: '2 / load: auto'
+        name: systematic-debugging
+      - layer: '2 / load: auto'
+        name: simplify-code
+      - layer: '2 / load: auto'
+        name: engineering-minimal-change-engineer
+      - layer: '3 / load: manual'
+        name: spike
+      - layer: '3 / load: manual'
+        name: vertical-slice-tdd
+      - layer: '3 / load: manual'
+        name: quick-prototype
+      - layer: '1 / load: manual'
+        name: compatibility-audit
+      调试:
+      - layer: '1 / load: manual'
+        name: node-inspect-debugger
+        ref: shared.调试.node-inspect-debugger
+      - layer: '1 / load: manual'
+        name: python-debugpy
+        ref: shared.调试.python-debugpy
+    description: 代码编写与调试 — 按 TDD 纪律交付可工作代码
   prompt-engineer:
-    description: "Prompt 工程 — SOUL.md 审计+Prompt 优化"
     categories:
       Prompt:
-        - name: engineering-prompt-engineer
-          layer: "2 / load: auto"
-
+      - layer: '2 / load: auto'
+        name: engineering-prompt-engineer
+    description: Prompt 工程 — SOUL.md 审计+Prompt 优化
   reality-checker:
-    description: "集成测试与现实检验 — 阻止幻想式审批，要求压倒性证据"
     categories:
       测试:
-        - name: dogfood
-          layer: "2 / load: auto"
-
-  docs-writer:
-    description: "技术文档工程师 — README/API参考/教程/概念指南写作，docs-as-code 基础设施"
+      - layer: '2 / load: auto'
+        name: dogfood
+      诊断:
+      - layer: '2 / load: auto'
+        name: systematic-debugging
+    description: 集成测试与现实检验 — 阻止幻想式审批，要求压倒性证据
+  spec-agent:
     categories:
-      文档工程:
-        - name: engineering-technical-writer
-          layer: "2 / load: auto"
-          intentional: true
-      写作工具:
-        - name: doc-coauthoring
-          layer: "3 / load: manual"
-        - name: humanizer-zh
-          layer: "3 / load: manual"
-          intentional: true
-
-# ═══════════════════════════════════════════
-# 全局 L1 工具（所有 Agent 按需加载）
-# ═══════════════════════════════════════════
-
+      领域工程:
+      - layer: '2 / load: auto'
+        name: domain-modeling
+      - layer: '2 / load: auto'
+        name: engineering-technical-writer
+      - layer: '3 / load: manual'
+        name: humanizer-zh
+      规格编写:
+      - layer: '2 / load: auto'
+        name: spec-authoring
+      - layer: '3 / load: manual'
+        name: product-manager
+        ref: shared.项目管理.product-manager
+      架构设计:
+      - layer: '2 / load: auto'
+        name: engineering-software-architect
+    description: 规格与对齐 Agent — 需求调研+领域建模+PRD 产出，只写文档不碰代码
+  synology-helper:
+    categories:
+      备份:
+      - layer: '2 / load: auto'
+        name: hermes-full-backup
+      维护:
+      - layer: '1 / load: manual'
+        name: hermes-maintenance
+      远程操作:
+      - intentional: true
+        layer: '2 / load: auto'
+        name: ssh-172
+      - layer: '1 / load: manual'
+        name: ssh-remote-access
+        ref: shared.远程.ssh-remote-access
+    description: 群晖 NAS 运维 — SSH 命令+架构备份
+  ui-designer:
+    categories:
+      创意编码:
+      - layer: '1 / load: manual'
+        name: p5js
+      - layer: '3 / load: manual'
+        name: design-md
+      - layer: '1 / load: manual'
+        name: touchdesigner-mcp
+      可视化:
+      - layer: '1 / load: manual'
+        name: architecture-diagram
+      - layer: '3 / load: manual'
+        name: baoyu-infographic
+      - layer: '1 / load: manual'
+        name: excalidraw
+      设计实现:
+      - layer: '3 / load: manual'
+        name: popular-web-designs
+      - layer: '3 / load: manual'
+        name: claude-design
+      - layer: '3 / load: manual'
+        name: sketch
+      - layer: '3 / load: manual'
+        name: pretext
+      设计方法:
+      - layer: '2 / load: auto'
+        name: frontend-design
+      - layer: '3 / load: manual'
+        name: taste-skill
+    description: 前端与视觉设计 — 设计实现+创意生成
+last_updated: '2026-06-28T08:19:18Z'
+maintainer: pm-agent
+schema_version: '2.5'
 shared:
-  description: "全局可用 L1 工具技能，所有 Agent 按需 skill_view"
   categories:
-    文档:
-      - name: pdf
-        layer: "1 / load: manual"
-      - name: docx
-        layer: "1 / load: manual"
-      - name: xlsx
-        layer: "1 / load: manual"
-      - name: pptx
-        layer: "1 / load: manual"
-      - name: markitdown
-        layer: "1 / load: manual"
-      - name: ocr-and-documents
-        layer: "1 / load: manual"
-    搜索:
-      - name: github-search
-        layer: "1 / load: manual"
-      - name: maps
-        layer: "1 / load: manual"
-      - name: arxiv
-        layer: "1 / load: manual"
-    远程:
-      - name: ssh-172
-        layer: "1 / load: manual"
-      - name: ssh-remote-access
-        layer: "1 / load: manual"
     可视化:
-      - name: excalidraw
-        layer: "1 / load: manual"
-      - name: architecture-diagram
-        layer: "1 / load: manual"
-      - name: p5js
-        layer: "1 / load: manual"
-    数据:
-      - name: jupyter-live-kernel
-        layer: "1 / load: manual"
-    调试:
-      - name: node-inspect-debugger
-        layer: "1 / load: manual"
-      - name: python-debugpy
-        layer: "1 / load: manual"
+    - layer: '1 / load: manual'
+      name: excalidraw
+    - layer: '1 / load: manual'
+      name: architecture-diagram
+    - layer: '1 / load: manual'
+      name: p5js
     备份:
-      - name: hermes-light-backup
-        layer: "1 / load: manual"
+    - layer: '1 / load: manual'
+      name: hermes-light-backup
+    搜索:
+    - layer: '1 / load: manual'
+      name: github-search
+    - layer: '1 / load: manual'
+      name: maps
+    - layer: '1 / load: manual'
+      name: arxiv
+    数据:
+    - layer: '1 / load: manual'
+      name: jupyter-live-kernel
+    文档:
+    - layer: '1 / load: manual'
+      name: pdf
+    - layer: '1 / load: manual'
+      name: docx
+    - layer: '1 / load: manual'
+      name: xlsx
+    - layer: '1 / load: manual'
+      name: pptx
+    - layer: '1 / load: manual'
+      name: markitdown
+    - layer: '1 / load: manual'
+      name: ocr-and-documents
+    调试:
+    - layer: '1 / load: manual'
+      name: node-inspect-debugger
+    - layer: '1 / load: manual'
+      name: python-debugpy
+    远程:
+    - layer: '1 / load: manual'
+      name: ssh-172
+    - layer: '1 / load: manual'
+      name: ssh-remote-access
+  description: 全局可用 L1 工具技能，所有 Agent 按需 skill_view

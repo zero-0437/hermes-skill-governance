@@ -1,0 +1,12 @@
+profiles:
+  spec-agent:
+    description: "规格与对齐 Agent — 需求调研+领域建模+PRD 产出"
+    model: deepseek-v4-flash
+    toolsets:
+      - terminal
+      - file
+      - session_search
+    disabled_toolsets:
+      - code_execution
+    delegation:
+      max_spawn_depth: 0

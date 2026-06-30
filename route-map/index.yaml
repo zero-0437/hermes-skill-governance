@@ -1,0 +1,91 @@
+agents:
+  data-analyst:
+    condition: 数据分析/搜索查询/研究类任务
+    description: 数据搜索与分析 — 多渠道信息检索，先判再搜
+    file: routes/data-analyst.yaml
+    priority: 4
+  docs-writer:
+    condition: 技术文档/API 参考/README/教程
+    description: 技术文档工程师 — 开发者文档和内容工程
+    file: routes/docs-writer.yaml
+    priority: 12
+  document-processor:
+    condition: 文档格式转换/PDF/OCR/Office 文件处理
+    description: 文档处理与转换 — 格式转换+公文排版
+    file: routes/document-processor.yaml
+    priority: 6
+  error-analyst:
+    condition: 故障诊断/安全审查/spec 合规评审
+    description: 错误诊断 + 代码审查 — 只读分析，不执行修改
+    file: routes/error-analyst.yaml
+    priority: 3
+  file-ops:
+    condition: 文件操作/大文件处理/SSH 传输/GitHub 推送
+    description: 文件操作专员 — 文件系统操作+GitHub推送
+    file: routes/file-ops.yaml
+    priority: 7
+  memory-agent:
+    condition: 记忆管理/知识库/Obsidian 笔记
+    description: 跨任务持久化记忆库 — 只追加不修改
+    file: routes/memory-agent.yaml
+    priority: 9
+  pm-agent:
+    condition: 纯协调类（多Agent编排/跨域冲突/批量任务拆解）
+    description: 技术架构师 + 执行调度者
+    file: routes/pm-agent.yaml
+    priority: 3
+  programmer:
+    condition: 编码类任务（代码/配置/治理文件/rules 修改——全部走 superpowers 全管线）
+    description: 代码编写与调试 — 按 TDD 纪律交付可工作代码
+    file: routes/programmer.yaml
+    priority: 2
+  prompt-engineer:
+    condition: Prompt 设计/优化/测试
+    description: Prompt 审计专家 — SOUL.md 质量审计+改写
+    file: routes/prompt-engineer.yaml
+    priority: 10
+  reality-checker:
+    condition: 集成测试/端到端验证/现实检验
+    description: 集成测试专家 — 阻止幻想式审批
+    file: routes/reality-checker.yaml
+    priority: 11
+  synology-helper:
+    condition: NAS 操作/备份/系统维护
+    description: 群晖 NAS 运维执行者 — SSH/Docker 全栈操作
+    file: routes/synology-helper.yaml
+    priority: 8
+  ui-designer:
+    condition: UI/UX 设计/视觉图表/前端原型
+    description: 前端与视觉设计 — 设计实现+创意生成
+    file: routes/ui-designer.yaml
+    priority: 5
+  spec-agent:
+    condition: 新项目/新功能强制入口 — 需求对齐+PRD 产出
+    description: 规格与对齐 Agent — 需求调研+领域建模+PRD 产出，只写文档不碰代码
+    file: routes/spec-agent.yaml
+    priority: 1
+    chain:
+      - agent: pm-agent
+        goal: 根据 PRD 拆解实现任务为垂直切片
+      - agent: programmer
+        goal: 按拆解后的任务逐个实现
+        batch: true
+defaults:
+  fallback_agent: pm-agent
+  method: threshold
+  min_confidence: 0.5
+last_updated: '2026-06-30T00:00:00Z'
+maintainer: pm-agent
+overrides:
+- agent: pm-agent
+  rules:
+  - pattern: 架构
+    skills:
+    - architecture-integrity-check
+    type: keyword
+    fuzzy: true
+  - pattern: \b(agent.*冲突|拓扑)\b
+    skills:
+    - architecture-integrity-check
+    type: regex
+schema_version: '2.5'

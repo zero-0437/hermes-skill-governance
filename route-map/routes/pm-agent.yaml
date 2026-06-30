@@ -1,0 +1,52 @@
+# route-map/routes/pm-agent.yaml
+# 技术架构师 + 执行调度者
+agent: pm-agent
+priority: 1
+condition: 纯协调类（多Agent编排/跨域冲突/批量任务拆解）
+rules:
+  # ── 架构/拓扑 → architecture-integrity-check ──
+  - type: phrase
+    pattern: 架构
+    weight: 1.0
+    skills: [architecture-integrity-check]
+  - type: phrase
+    pattern: 拓扑
+    weight: 1.0
+    skills: [architecture-integrity-check]
+
+  # ── 拆解/方案/可行性报告 → product-manager + plan ────
+  - type: phrase
+    pattern: 拆解
+    weight: 1.0
+    skills: [product-manager, plan]
+    fuzzy: true
+  - type: phrase
+    pattern: 设计方案
+    weight: 0.6
+    skills: [product-manager, plan]
+    fuzzy: true
+  - type: phrase
+    pattern: 可行性报告
+    weight: 0.6
+    skills: [product-manager, plan]
+    fuzzy: true
+  - type: phrase
+    pattern: 拆解清单
+    weight: 0.6
+    skills: [product-manager, plan]
+    fuzzy: true
+  - type: phrase
+    pattern: 技术选型
+    weight: 0.6
+    skills: [product-manager, plan]
+    fuzzy: true
+
+  # ── 跨域/冲突 → multi-agent-swarm ──────────────────────
+  - type: phrase
+    pattern: 跨域
+    weight: 1.0
+    skills: [multi-agent-swarm]
+  - type: phrase
+    pattern: 冲突
+    weight: 1.0
+    skills: [multi-agent-swarm]

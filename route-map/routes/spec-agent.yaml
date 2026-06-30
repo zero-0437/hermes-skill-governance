@@ -1,0 +1,72 @@
+# route-map/routes/spec-agent.yaml
+# 新项目/新功能强制入口 — 只写文档不碰代码
+agent: spec-agent
+priority: 1
+condition: 新项目/新功能强制入口 — 需求对齐+PRD 产出
+
+rules:
+  # ── 高权重核心匹配 ──────────────────────
+  - type: phrase
+    pattern: 做
+    weight: 1.0
+    skills: [domain-modeling]
+  - type: phrase
+    pattern: 实现
+    weight: 1.0
+    skills: [domain-modeling, spec-authoring]
+  - type: phrase
+    pattern: 制作
+    weight: 1.0
+    skills: [domain-modeling]
+  - type: phrase
+    pattern: 创建
+    weight: 1.0
+    skills: [domain-modeling]
+  - type: phrase
+    pattern: 开发
+    weight: 1.0
+    skills: [domain-modeling, spec-authoring]
+  - type: phrase
+    pattern: 构建
+    weight: 1.0
+    skills: [domain-modeling]
+  - type: phrase
+    pattern: 搞一个
+    weight: 1.0
+    skills: [domain-modeling]
+  - type: phrase
+    pattern: 写一个
+    weight: 1.0
+    skills: [domain-modeling, spec-authoring]
+  - type: phrase
+    pattern: 加一个
+    weight: 0.9
+    skills: [domain-modeling]
+  - type: phrase
+    pattern: 新功能
+    weight: 1.0
+    skills: [domain-modeling, spec-authoring]
+    fuzzy: true
+  - type: phrase
+    pattern: 新项目
+    weight: 1.0
+    skills: [domain-modeling, spec-authoring]
+    fuzzy: true
+  - type: regex
+    pattern: \b(new project|new feature|implement|create|build|make)\b
+    weight: 0.9
+    skills: [domain-modeling, spec-authoring]
+
+  # ── 负权重防误匹配 ──────────────────────
+  - type: phrase
+    pattern: 改
+    weight: -0.5
+    skills: []
+  - type: phrase
+    pattern: 修
+    weight: -0.5
+    skills: []
+  - type: phrase
+    pattern: 删
+    weight: -0.5
+    skills: []

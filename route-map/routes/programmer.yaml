@@ -1,0 +1,177 @@
+# route-map/routes/programmer.yaml
+# 代码编写与调试 — 按 TDD 纪律交付可工作代码
+agent: programmer
+priority: 2
+condition: Coding 任务（新功能/修 bug/重构→走 superpowers 全管线）
+rules:
+  # ── 实现/编码/开发 → spike ────────────────────────────
+  - type: phrase
+    pattern: 实现
+    weight: 0.8
+    skills: [spike]
+  - type: phrase
+    pattern: 编码
+    weight: 0.8
+    skills: [spike]
+  - type: regex
+    pattern: 写.*(代码|code)
+    weight: 0.8
+    skills: [spike]
+  - type: phrase
+    pattern: 编程
+    weight: 0.8
+    skills: [spike]
+  - type: phrase
+    pattern: 开发
+    weight: 0.8
+    skills: [spike]
+  - type: phrase
+    pattern: 实现新功能
+    weight: 1.0
+    skills: [spike]
+    fuzzy: true
+  - type: phrase
+    pattern: 写一个函数
+    weight: 1.0
+    skills: [spike]
+    fuzzy: true
+  - type: regex
+    pattern: \b(implement)\b
+    weight: 0.7
+    skills: [spike]
+
+  # ── bug/错误/修复 → systematic-debugging + codebase-inspection ──
+  - type: phrase
+    pattern: 缺陷
+    weight: 0.8
+    skills: [systematic-debugging, codebase-inspection]
+  - type: phrase
+    pattern: 修复这个 bug
+    weight: 1.0
+    fuzzy: true
+    skills: [systematic-debugging, codebase-inspection]
+  - type: regex
+    pattern: \b(bug)\b
+    weight: 0.8
+    skills: [systematic-debugging, codebase-inspection]
+  - type: regex
+    pattern: \b(fix)\b
+    weight: 0.7
+    skills: [systematic-debugging, codebase-inspection]
+
+  # ── 重构 → systematic-debugging ──────────────────────────
+  - type: phrase
+    pattern: 重构
+    weight: 0.8
+    skills: [systematic-debugging]
+    fuzzy: true
+  - type: regex
+    pattern: \b(refactor)\b
+    weight: 0.7
+    skills: [systematic-debugging]
+
+  # ── 测试 → 空（L2 auto 的 TDD 已覆盖）─────────────────
+  - type: phrase
+    pattern: 测试
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: \b(TDD)\b
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: \b(write.*test)\b
+    weight: 0.7
+    skills: []
+
+  # ── PR/commit/push/git → github-pr-workflow + github-code-review ──
+  - type: regex
+    pattern: \b(commit|push|PR|pull\.request)\b
+    weight: 0.8
+    skills: [github-pr-workflow, github-code-review]
+
+  # ── 安装/部署/构建 → compatibility-audit ──────────────────
+  - type: phrase
+    pattern: 安装
+    weight: 0.8
+    skills: [compatibility-audit]
+  - type: phrase
+    pattern: 部署
+    weight: 0.8
+    skills: [compatibility-audit]
+  - type: phrase
+    pattern: 构建
+    weight: 0.8
+    skills: [compatibility-audit]
+  - type: regex
+    pattern: \b(install)\b
+    weight: 0.7
+    skills: [compatibility-audit]
+  - type: regex
+    pattern: \b(build)\b
+    weight: 0.7
+    skills: [compatibility-audit]
+  - type: regex
+    pattern: \b(compile)\b
+    weight: 0.7
+    skills: [compatibility-audit]
+
+  # ── 语言匹配 → 通用编码，无特殊技能 ─────────────────────
+  - type: regex
+    pattern: 
+      \b(python|javascript|typescript|golang|rust|java|c\+\+|shell|bash|makefile)\b
+    weight: 0.6
+    skills: []
+
+  # ── 误匹配防护——负权重，无技能 ────────────────────────
+  - type: phrase
+    pattern: 设计
+    weight: -0.5
+    skills: []
+  - type: phrase
+    pattern: 文档
+    weight: -0.5
+    skills: []
+  - type: phrase
+    pattern: 备份
+    weight: -0.5
+    skills: []
+  - type: phrase
+    pattern: 记忆
+    weight: -0.5
+    skills: []
+  - type: regex
+    pattern: \\b(NAS|Prompt)\\b
+    weight: -0.5
+    skills: []
+
+  # ── 治理/路由/技能 — 编码类 ──────────────────────────
+  - type: phrase
+    pattern: 治理
+    weight: 0.8
+    skills: [spike]
+    fuzzy: true
+  - type: regex
+    pattern: \b(route-map)\b
+    weight: 0.8
+    skills: [spike]
+  - type: regex
+    pattern: \b(skill-map)\b
+    weight: 0.8
+    skills: [spike]
+  - type: regex
+    pattern: \b(validate)\b
+    weight: 0.7
+    skills: [spike]
+  - type: regex
+    pattern: \b(rebuild.*cache)\b
+    weight: 0.8
+    skills: [spike]
+  - type: regex
+    pattern: 新增.*Agent
+    weight: 0.9
+    skills: [spike]
+  - type: phrase
+    pattern: 一致性
+    weight: 0.5
+    skills: [spike]
