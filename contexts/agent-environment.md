@@ -10,16 +10,20 @@
 - **证据**：测试结果摘要或校验和
 ### 路由引擎链
 
-当 route_engine 返回 `chain` 字段时，按以下步骤执行：
+当 route_engine 返回 `chain` 字段时，按 chain_executor 编排执行：
 
-1. 第一步委派 result.agent（路由引擎选中的 Agent）
-2. 等待第一步完成
-3. 读取第一步的产出路径
-4. 按 chain 顺序逐个委派后续步骤
+1. 主 Agent 调用 `chain_executor.py advance` 获得下一步决策
+2. `CONTINUE` → 按返回的 `{agent, goal, skills, context}` 执行 delegate_task
+   - skills 来自 SOUL.md 的 `chain_step_skills` 映射表，以 `{chain所属Agent}@{step索引}` 为 key
    - 每步 context 自动注入上一步的产出路径
-   - batch=true：上一步产出多个子任务时，每个独立委派
-5. 任一步返回 BLOCKED → 挂起整条链
-6. 所有步骤完成 → 汇总全部产出回报用户
+3. 子 Agent 完成后，主 Agent 将回报作为 `--last_result` 重新调 chain_executor
+4. 根据返回 status 分支：
+   - CONTINUE → 继续 delegate 下一步（循环）
+   - RETRY → 委派 programmer fix，完成后回到原评审步骤（循环）
+   - BLOCKED → 挂起整条链，上报诊断
+   - NEEDS_CONTEXT → 转发用户，等待回答后重试本步
+   - DONE → 汇总全部产出回报用户
+5. 工具级重试（§四 2 次封顶）与 chain fix 循环 retry 独立——fix 循环的 retry_count 只计数「评审→fix→重新评审」完整迭代，不计子 Agent 内部工具级重试
 
 ### NEEDS_CONTEXT 转发
 

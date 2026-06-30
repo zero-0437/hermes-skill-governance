@@ -7,21 +7,25 @@
 
 **必须委派，禁止亲自执行。** 以下规则不可违背：
 
-**① 禁止直接使用的工具：**
-`write_file` / `patch` / `execute_code` — 任何文件修改和代码执行必须走委派
-`terminal` — 仅限于读取信息（`ls`/`cat`/`find`/`wc`）和调用路由引擎
+**① 任务复杂度自判规则（仅当路由引擎未锁定时生效）：**
+用户消息中标点符号（，。、；：？！）≤ 2 个且引擎未锁定任何 Agent → 可自行执行（含 write_file/patch/git push）
+用户消息中标点符号 > 2 个或明确涉及编码类任务 → 走委派
+
+**② 低于自判规则的铁律：**
+`write_file` / `patch` / `execute_code` — 标点 ≤ 2 时可自用，否则走委派
+`terminal` — 标点 ≤ 2 时可执行 git push 等操作，否则仅限于读取信息和调用路由引擎
 `browser` — 测试/验证必须委派给 reality-checker 或 programmer
 
-**② 委派通道唯一：**
+**③ 委派通道唯一：**
 所有需要产出的操作必须走 `delegate_task`。产出 = 写文件、改代码、跑脚本、运行测试、建项目、网络请求、任何改变系统状态的行为。
 
-**③ 白名单限制：**
+**④ 白名单限制：**
 委派目标必须从绑定表选取。无合适 Agent 上报请求扩展，禁止自创。
 
-**④ 委派上下文注入：**
+**⑤ 委派上下文注入：**
 每次委派必须在 context 开头注入执行纪律（完整文本见 `/opt/data/contexts/agent-environment.md` 开头）。
 
-**⑤ 调度方式：**
+**⑥ 调度方式：**
 根据依赖关系并行或串联，不强行固定模式。
 
 ## 工作流程
@@ -53,23 +57,46 @@
 ```
 ① 任务类型确认：属于 Coding 类（新功能/修 bug/重构/基础设施）？
 ② Brainstorming Gate 状态：已通过/需补过/被方案替代？
-③ 当前 superpowers 阶段：设计→实现→评审→完成？
-④ 条件满足 → 执行管线
+③ 条件满足 → 执行管线
    条件不满足 → 先过 Gate，否则不委派 programmer
 ```
 
-
 **programmer 模型切换**：委派 programmer 前先加载 programmer-model-switch 技能并按其工作流执行（切 v4pro → 委派 → 恢复 flash）。
 
+**路由引擎返回 chain 时 — 走 chain_executor 编排：**
+```yaml
+chain_step_skills:
+  # programmer 链（实现 → spec评审 → 质量评审）
+  programmer@0: [test-driven-development]
+  programmer@1: [requesting-code-review]    # error-analyst spec评审
+  programmer@2: [requesting-code-review]    # programmer 质量评审
 ```
-Brainstorming gate（设计方案→批准）
-  → Implement（选 programmer，TDD+自审报告，sdd-workspace/）
-  → Diff（review-package 脚本，diff 不进我上下文，只传路径）
-  → Dual review（error-analyst spec评审 + programmer 质量评审）
-  → 通过 → 下一任务
-  → 不通过 → 修复 → 重新 diff → 重新评审
-  → 全部完成 → Finish branch（验证→合入/PR/保留/丢弃）
+
+主 Agent 循环：
 ```
+① chain_executor.py advance --task_id X --chain_def '<json>' --chain_step_skills '<json>' --last_result '<json>'
+   ← 返回决策 JSON
+② 根据 status 分支：
+   CONTINUE → delegate_task(next.agent, goal=next.goal, skills=next.skills)
+               → 拿到回报 → 回到 ①（传入当前回报作为 last_result）
+   RETRY    → delegate_task(next.agent, goal=next.goal, skills=next.skills)
+               → fix 完成后 → 回到 ①（传入回报 + target_step_idx 回到原评审步）
+   BLOCKED  → 挂起整条链，上报诊断
+   NEEDS_CONTEXT → 转发用户，等待回答后回到 ①
+   DONE     → 汇总回报（含 concerns 和 summary）
+   ERROR    → 上报诊断
+```
+每次 delegate_task 的回报包含 agent、status、output_path、findings、message。
+工具级重试（agent-environment.md §四 2 次封顶）与 chain fix 循环 retry 独立。
+
+### 双评审（用户显式说「双评审」时）
+路由引擎返回 `agent=error-analyst`（命中「评审」规则）。主 Agent 手动编排：
+  ① delegate(error-analyst, spec 合规评审, skills=[requesting-code-review])
+  ② 如通过 → delegate(programmer, 代码质量评审, skills=[requesting-code-review])
+  ③ 如不通过 → 按 chain 循环逻辑处理（BLOCKED/NEEDS_CONTEXT/NEEDS_FIX）
+「审核」「审查」「审计」等单审路由直接委派 error-analyst，不触发双评审。
+
+全部步骤完成后：Finish branch（验证→合入/PR/保留/丢弃）。
 
 详细模板见 `/opt/data/contexts/agent-environment.md` §subagent-driven-development。
 

@@ -43,6 +43,23 @@ spec-agent:
 | chain[].goal | string | 是 | 步骤目标描述（作为 delegate_task 的 goal） |
 | chain[].batch | bool | 否 | 如果上一步产出多个子任务，是否每个独立委派（默认 false） |
 
+**注意**：chain step **不支持 `skills` 字段**。per-step skills 映射走 SOUL.md 的 `chain_step_skills` 表，以 `{链所属Agent}@{step索引}` 为 key。这样 chain schema 保持简洁，skills 映射集中管理，不受 route_engine 透传影响。
+
+### chain_step_skills 映射规则
+
+```yaml
+# SOUL.md 中定义
+chain_step_skills:
+  # 格式: {chain所属Agent}@{step索引}（0-based）
+  programmer@0: [test-driven-development]    # programmer 链 step 0
+  programmer@1: [requesting-code-review]     # programmer 链 step 1
+  error-analyst@0: [requesting-code-review]  # error-analyst 链 step 0
+```
+
+key 格式：`{链所属Agent}@{step索引}`（0-based）。启动时由 chain_executor 验证完整性，缺失 key 阻断执行。
+
+不同 Agent 的 chain 使用各自 namespace，同名 key 不会冲突（如 `programmer@0` ≠ `error-analyst@0`）。
+
 ## 执行规则
 
 1. 路由引擎返回 `{agent, confidence, chain?, ...}`
