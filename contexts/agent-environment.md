@@ -149,7 +149,7 @@ context 已明确指定的内容直接使用，禁止验证：
 
 ## 八、技能缓存机制
 
-技能目录树由 `/opt/data/skill-map.yaml` 定义，运行时通过 `/opt/data/.skill-cache.json` 加速委派决策。
+技能注册由 `/opt/data/skill-map.yaml` 定义，运行时通过 `/opt/data/.skill-cache.json` 加速委派决策。
 
 - **缓存文件**: `/opt/data/.skill-cache.json` — 由 `scripts/rebuild-cache.py` 从 skill-map.yaml 生成
 - **TTL**: 30 分钟（`ttl_minutes: 30`），过期后主 Agent 应触发重建

@@ -49,7 +49,7 @@
        委派前检查（6 问 + 内容质量）→ 构造参数（最小上下文）→ 注入执行纪律 → delegate_task → 监控 → 汇总
 ```
 
-引擎锁定后，委派前检查中的「选 Agent」步骤自动跳过（Agent 已确定），技能从引擎返回的 `skills` 字段注入，不另从绑定表全量拉取。引擎未锁定则由我手动从绑定表确定 Agent + 全量 L3。
+引擎锁定后，委派前检查中的「选 Agent」步骤自动跳过（Agent 已确定），技能从引擎返回的 `skills` 字段注入，不另从绑定表全量拉取。引擎未锁定则由我手动从绑定表 condition 列确定 Agent，技能调用 `python3 scripts/route_engine.py skills <agent_name>` 获取（返回 auto/manual 列表）。
 
 ### 编码类 — superpowers 全管线（覆盖范围：代码/配置/治理文件/rules 等一切系统行为修改）
 
@@ -113,18 +113,18 @@ chain_step_skills:
 
 ## Agent→Skill 绑定表
 
-| Agent | L2 auto（自动加载） | L3 manual（context 显式指定） | condition（触发条件） |
-|-------|-------------------|---------------------------|----------------------|
-| `pm-agent` | — | — | 纯协调类（多Agent编排/跨域冲突/批量任务拆解——PM-agent 只拆解不执行，产出 task blocks 交还主 Agent 分配管线） |
-| `programmer` | test-driven-development, systematic-debugging, simplify-code, engineering-minimal-change-engineer, requesting-code-review | spike, compatibility-audit, codebase-inspection, github-code-review, github-auth, github-issues, github-pr-workflow, github-repo-management, github-search, engineering-git-workflow-master, node-inspect-debugger, python-debugpy, claude-code, codex, opencode, hermes-agent-skill-authoring | 编码类任务（新功能/修 bug/重构/治理文件修改/系统配置——全部走 superpowers 全管线） |
-| `error-analyst` | systematic-debugging, codebase-inspection, requesting-code-review, engineering-sre, postmortem-analyst | network-debugging, github-code-review, engineering-security-engineer, engineering-incident-response-commander | 故障诊断/安全审查/spec 合规评审 |
-| `data-analyst` | search-backend-evaluation | github-search, maps, xurl, arxiv, blogwatcher, polymarket, llm-wiki, youtube-content, jupyter-live-kernel | 数据分析/搜索查询/研究类任务 |
-| `ui-designer` | frontend-design | taste-skill, popular-web-designs, claude-design, sketch, pretext, architecture-diagram, baoyu-infographic, excalidraw, p5js, design-md, touchdesigner-mcp | UI/UX 设计/视觉图表/前端原型 |
-| `document-processor` | pdf, docx, xlsx, pptx, markitdown | ocr-and-documents, doc-coauthoring, civil-servant, engineering-technical-writer, humanizer-zh | 文档格式转换/PDF/OCR/Office 文件处理 |
-| `file-ops` | token-efficient-file-ops | ssh-172, ssh-remote-access, github-push | 文件操作/大文件处理/SSH 传输/GitHub 推送 |
-| `synology-helper` | ssh-172, hermes-full-backup | ssh-remote-access, hermes-maintenance | NAS 操作/备份/系统维护 |
-| `memory-agent` | llm-wiki, obsidian | — | 记忆管理/知识库/Obsidian 笔记 |
-| `prompt-engineer` | engineering-prompt-engineer | — | Prompt 设计/优化/测试 |
-| `reality-checker` | dogfood, systematic-debugging | — | 集成测试/端到端验证/现实检验 |
-| `docs-writer` | engineering-technical-writer | doc-coauthoring, humanizer-zh | 技术文档/API 参考/README/教程 |
-| `spec-agent` | domain-modeling, spec-authoring, engineering-technical-writer | product-manager, humanizer-zh, engineering-software-architect | 新项目入口/需求对齐/PRD 编写 |
+| Agent | condition（触发条件） |
+|-------|---------------------|
+| `pm-agent` | 纯协调类（多Agent编排/跨域冲突/批量任务拆解——PM-agent 只拆解不执行，产出 task blocks 交还主 Agent 分配管线） |
+| `programmer` | 编码类任务（新功能/修 bug/重构/治理文件修改/系统配置——全部走 superpowers 全管线） |
+| `error-analyst` | 故障诊断/安全审查/spec 合规评审 |
+| `data-analyst` | 数据分析/搜索查询/研究类任务 |
+| `ui-designer` | UI/UX 设计/视觉图表/前端原型 |
+| `document-processor` | 文档格式转换/PDF/OCR/Office 文件处理 |
+| `file-ops` | 文件操作/大文件处理/SSH 传输/GitHub 推送 |
+| `synology-helper` | NAS 操作/备份/系统维护 |
+| `memory-agent` | 记忆管理/知识库/Obsidian 笔记 |
+| `prompt-engineer` | Prompt 设计/优化/测试 |
+| `reality-checker` | 集成测试/端到端验证/现实检验 |
+| `docs-writer` | 技术文档/API 参考/README/教程 |
+| `spec-agent` | 新项目入口/需求对齐/PRD 编写 |

@@ -108,6 +108,53 @@ def _lookup_skills(agent_name: str) -> tuple[list, list]:
     return auto, manual
 
 
+def _build_skill_owners() -> dict[str, list[str]]:
+    """构建技能→Agent 反向索引
+
+    遍历 .skill-cache.json，将每个技能名映射到拥有它的 Agent 列表。
+    支持共享技能（同技能多 Agent 持有）。
+    """
+    cache = _load_skill_cache()
+    if not cache:
+        return {}
+
+    owners: dict[str, list[str]] = {}
+    for agent_name, data in cache.items():
+        all_skills = list(set(data.get("auto", [])) | set(data.get("manual", [])))
+        for skill in all_skills:
+            if skill not in owners:
+                owners[skill] = []
+            owners[skill].append(agent_name)
+    return owners
+
+
+def _score_skill_matches(text: str, owners: dict[str, list[str]]) -> tuple[dict[str, float], set[str]]:
+    """根据用户输入中提及的技能名，对拥有该技能的 Agent 加分
+
+    返回：(scores, matched_skills)
+    - scores: {agent_name: bonus} — 每个命中技能为 owner 加 0.2
+    - matched_skills: set[str] — 实际命中的技能名（去重）
+    这实现了「技能 → Agent」方向的隐式路由。
+    """
+    normalized = text.lower().strip()
+    scores: dict[str, float] = {}
+    matched: set[str] = set()
+    for skill_name, agent_list in owners.items():
+        # 短纯英文技能名（< 5 字符，全 ASCII 字母）使用 \\b 单词边界匹配，
+        # 避免 "plan" 匹配 "explanation"、"pdf" 匹配 "cpdf" 等误触发。
+        # 对含连字符的技能名、CJK 技能名或长度 >= 5 的技能名仍用 in 子串匹配。
+        if len(skill_name) < 5 and skill_name.isascii() and skill_name.isalpha():
+            if not re.search(rf'\b{re.escape(skill_name.lower())}\b', normalized):
+                continue
+        else:
+            if skill_name.lower() not in normalized:
+                continue
+        matched.add(skill_name)
+        for agent in agent_list:
+            scores[agent] = scores.get(agent, 0.0) + 0.2
+    return scores, matched
+
+
 # ══════════════════════════════════════════════════════════════════
 # 关键词拆解 + 模糊匹配
 # ══════════════════════════════════════════════════════════════════
@@ -413,11 +460,24 @@ def route(user_input: str) -> dict:
 
     # ── 评估 + 决策 ────────────────────────────────────────────
     scored_results = evaluate(user_input, route_map)               # (name, score, matched_rules)
+
+    # ── 技能反向匹配：用户提及技能名 → 对 owner Agent 加分 ──
+    skill_owners = _build_skill_owners()
+    skill_scores, skill_matched = _score_skill_matches(normalized, skill_owners)
+    if skill_scores:
+        new_results = []
+        for name, score, matched in scored_results:
+            bonus = skill_scores.get(name, 0.0)
+            new_results.append((name, score + bonus, matched))
+        new_results.sort(key=lambda x: x[1], reverse=True)
+        scored_results = new_results
+        # 将命中的技能名（去重）注入 matched_rules
+        matched_rules.extend([f"skill:{s}" for s in sorted(skill_matched)])
+
     scores = [(name, score) for name, score, _ in scored_results]  # strip rules for decide()
     result = decide(scores, route_map, user_input)
 
     # 从 evaluate 结果直接提取 top agent 的匹配规则与技能（无需二次遍历规则列表）
-    matched_skills: set[str] = set()
     if scored_results:
         top_rules = scored_results[0][2]  # 已命中的规则 dict 列表
         for rule in top_rules:
@@ -517,8 +577,19 @@ def main(argv: list[str] | None = None) -> None:
     if argv is None:
         argv = sys.argv[1:]
     if not argv:
-        print("用法: python route_engine.py <用户输入>")
+        print("用法: python3 scripts/route_engine.py <用户输入>")
+        print("      python3 scripts/route_engine.py skills <agent_name>")
         sys.exit(1)
+
+    if argv[0] == "skills" and len(argv) >= 2:
+        agent_name = argv[1]
+        auto, manual = _lookup_skills(agent_name)
+        print(json.dumps({
+            "agent": agent_name,
+            "auto": auto,
+            "manual": manual,
+        }, ensure_ascii=False, indent=2))
+        return
 
     user_input = " ".join(argv)
     result = route(user_input)

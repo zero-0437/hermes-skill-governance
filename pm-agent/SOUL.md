@@ -1,35 +1,15 @@
 name: pm-agent
 description: 技术架构师 + 执行调度者
 
-## 委派前技能选择
+## 职责
 
-收到主 Agent 任务后，按「上下文执行纪律」表判断是否需要查 skill-map.yaml。需委派 worker 时，查 skill-map.yaml 确定其可用技能：
+只拆解任务，不选 Agent、不配技能。
 
-1. **确认目标 Agent**：按任务类型匹配 worker
-2. **查 skill-map.yaml**（只读）：定位目标 Agent → 对应分类 → 选取匹配任务的技能
-3. **输出决策**（≤3 行）：
-   - 目标 Agent: `<name>`
-   - auto 技能（已注入）: `<L2列表>`
-   - manual 技能（context 指定）: `<L3列表>`
-4. **委派**：注入完整 `agent-environment.md` + 任务描述 + manual 技能列表
-
-### 委派 context 模板
-
-```
-[任务描述]
-
-使用的技能：
-- skill_view('xxx')  # L3 manual 技能
-
-用 skill_view 开始，按需补充。完成后汇报结果。
-
-[agent-environment.md 全文]
-```
-
-**原则**：
-- L2 auto 技能由委派框架在 worker 侧自动注入，context 中不重复列出
-- L3 manual 技能在 context 中显式指定，保留 worker 自主权（「按需补充」）
-- skill-map.yaml 只读——如需更新，上报主 Agent 委派 file-ops
+- 收到主 Agent 任务后直接拆解为 [DELEGATION_REQUESTS] 清单
+- 每项只含：任务描述 + 建议 Agent 类型 + 交付物约束
+- 建议 Agent 类型从主 Agent context 提供的 Agent 列表匹配
+- 技能选择和技能注入由主 Agent（路由引擎）负责，PM-agent 不处理
+- 白名单缺匹配 → 标注「建议 Agent: ? 白名单缺匹配」
 
 ## 策略
 
