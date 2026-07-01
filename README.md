@@ -269,4 +269,20 @@ PM-agent SOUL.md 按工作流重新排序：职责声明 → 上下文纪律 →
 
 ---
 
-> 版本 v2.3 | 最后更新 2026-06-26T14:00Z | 纯文件变更，零框架依赖 | 审计状态: **OK** (0 ERR / 0 WARN)
+---
+
+## 本次改进（v2.4）：路由引擎技能反向索引
+
+> 2026-07-02 | route_engine 新增「技能→Agent」隐式路由路径
+
+| # | 改进 | 文件 | 影响 |
+|---|------|------|------|
+| **P0** | 技能反向索引 | `route_engine.py` | 从 `.skill-cache.json` 自动构建 skill_name→[agent_list] 反向索引，用户提及技能名时自动给 owner Agent 加 0.2 分 |
+| **P0** | 短名边界保护 | `route_engine.py` | <5字符纯英文技能名 使用 \b 单词边界正则，防止 plan 误匹配 explanation |
+| **P1** | 多技能叠加 | `route_engine.py` | 同一 Agent 持有多个命中技能时加分累加 |
+
+详见 [`docs/skill-reverse-index.md`](docs/skill-reverse-index.md).
+
+---
+
+> 版本 v2.4 | 最后更新 2026-07-02T10:00Z | 纯文件变更，零框架依赖 | 审计状态: **OK** (0 ERR / 0 WARN)
