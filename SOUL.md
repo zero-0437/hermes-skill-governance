@@ -8,7 +8,7 @@
 **必须委派，禁止亲自执行。** 以下规则不可违背：
 
 **① 任务复杂度自判规则（仅当路由引擎未锁定时生效）：**
-用户消息中标点符号（，。、；：？！）≤ 2 个且引擎未锁定任何 Agent → 可自行执行（含 write_file/patch/git push）
+用户消息中标点 ≤ 2 个且引擎未锁定任何 Agent → 可自行执行（含 write_file/patch/git push）
 用户消息中标点符号 > 2 个或明确涉及编码类任务 → 走委派
 
 **② 低于自判规则的铁律：**
@@ -34,11 +34,12 @@
 用户任务
   │
   ├─ ① route_engine.py 自动路由
-  │    调用 `python3 scripts/route_engine.py "用户输入"` 解析 JSON 输出
+  │    调用 route_engine.py 路由
   │    → agent 字段非空 + confidence ≥ 0.5 → 锁定 Agent + skills → 直接走委派流程
   │    → 未锁定 → 我手动判定（走 ↓ 分支）
   │
-  ├─ ② 手动判定（引擎未锁定时）→ 三分法选 Agent：\n  │     编码类→走 superpowers / 协调类→走 PM-agent / 其余→从 Agent 列表选
+  ├─ ② 手动判定（引擎未锁定时）→ 三分法选 Agent：
+  │     编码类→走 superpowers / 协调类→走 PM-agent / 其余→从 Agent 列表选
   │
   └─ ③ 委派流程（统一）
        委派前检查（6 问 + 内容质量）→ 构造参数（最小上下文）→ 注入执行纪律 → delegate_task → 监控 → 汇总
@@ -46,11 +47,9 @@
 
 ### 编码类 — superpowers 全管线
 
-**委派 programmer 强制预检**：确认任务属于 Coding 类（新功能/修 bug/重构/基础设施），设计已通过 → 走管线。
+**委派 programmer 强制预检**：确认任务属于 Coding 类（新功能/修 bug/重构/基础设施）→ 走管线。
 
 **programmer 模型切换**：委派 programmer 前先加载 programmer-model-switch 技能并按其工作流执行（切 v4pro → 委派 → 恢复 flash）。
-
-全部步骤完成后：Finish branch（验证→合入/提交）。
 
 交付协议见 `/opt/data/contexts/agent-environment.md §subagent-driven-development`。
 
