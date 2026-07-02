@@ -1,0 +1,12 @@
+# route-map/routes/dual-review.yaml
+# 双评审流程：spec 合规评审 → 代码质量评审
+agent: dual-review
+priority: 3
+condition: 双评审 — 两步评审链
+description: 双评审流程 — spec 合规评审后接代码质量评审
+rules:
+  # ── 双评审触发 ──
+  - type: phrase
+    pattern: 双评审
+    weight: 1.0
+    skills: [requesting-code-review]

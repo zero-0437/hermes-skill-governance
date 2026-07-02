@@ -20,7 +20,7 @@
 所有需要产出的操作必须走 `delegate_task`。产出 = 写文件、改代码、跑脚本、运行测试、建项目、网络请求、任何改变系统状态的行为。
 
 **④ 白名单限制：**
-委派目标必须从绑定表选取。无合适 Agent 上报请求扩展，禁止自创。
+委派目标必须从可用 Agent 列表选取。无合适 Agent 上报请求扩展，禁止自创。
 
 **⑤ 委派上下文注入：**
 每次委派必须在 context 开头注入执行纪律（完整文本见 `/opt/data/contexts/agent-environment.md §一、接收委派`）。
@@ -38,18 +38,11 @@
   │    → agent 字段非空 + confidence ≥ 0.5 → 锁定 Agent + skills → 直接走委派流程
   │    → 未锁定 → 我手动判定（走 ↓ 分支）
   │
-  ├─ ② 手动判定（引擎未锁定时）— 三分法，互斥判定
-  │    ├─ 编码类（写/改代码、配置文件、治理文件、rules、任何改变系统行为）→ 走 superpowers 全管线
-  │    │    ├─ 单 Agent 够用 → 直接跑（programmer 设计→实现→评审）
-  │    │    └─ 需多 Agent 协作 → PM-agent 拆解 task blocks，每个 block 仍走 superpowers
-  │    ├─ 纯协调类（多团队并行、跨域冲突、批量任务编排）→ PM-agent 拆解+调度（PM 不执行）
-  │    └─ 其余（搜索、文档、分析、设计、查询等）→ 从绑定表选对应 Agent
+  ├─ ② 手动判定（引擎未锁定时）→ 三分法选 Agent：\n  │     编码类→走 superpowers / 协调类→走 PM-agent / 其余→从 Agent 列表选
   │
   └─ ③ 委派流程（统一）
        委派前检查（6 问 + 内容质量）→ 构造参数（最小上下文）→ 注入执行纪律 → delegate_task → 监控 → 汇总
 ```
-
-引擎锁定后，委派前检查中的「选 Agent」步骤自动跳过（Agent 已确定），技能从引擎返回的 `skills` 字段注入，不另从绑定表全量拉取。引擎未锁定则由我从可用 Agent 列表中选目标（condition 见 `/opt/data/route-map/index.yaml`），技能通过 `route_engine.py skills` 获取（详见 `/opt/data/contexts/agent-environment.md §路由引擎链`）。
 
 ### 编码类 — superpowers 全管线（覆盖范围：代码/配置/治理文件/rules 等一切系统行为修改）
 
@@ -74,13 +67,6 @@ advance → 按 status 分支：
 
 工具级重试（`/opt/data/contexts/agent-environment.md §四` 2 次封顶）与 chain fix 循环 retry 独立。
 
-### 双评审（用户显式说「双评审」时）
-路由引擎返回 `agent=error-analyst`（命中「评审」规则）。主 Agent 手动编排：
-  ① delegate(error-analyst, spec 合规评审, skills=[requesting-code-review])
-  ② 如通过 → delegate(programmer, 代码质量评审, skills=[requesting-code-review])
-  ③ 如不通过 → 按 chain 循环逻辑处理（BLOCKED/NEEDS_CONTEXT/NEEDS_FIX）
-「审核」「审查」「审计」等单审路由直接委派 error-analyst，不触发双评审。
-
 全部步骤完成后：Finish branch（验证→合入/提交/保留/丢弃）。
 
 交付协议见 `/opt/data/contexts/agent-environment.md §subagent-driven-development`。
@@ -91,12 +77,12 @@ advance → 按 status 分支：
 |---|------|
 || ① | 决策层和执行层分清了？（Agent 不既决策又执行） |
 || ② | 证据链要求明确？（evidence 字段：file/test/hash 至少一项） |
-|| ③ | 技能在白名单内？（引擎已锁定则跳过，否则查绑定表） |
+|| ③ | 技能在白名单内？（引擎已锁定则跳过，否则查 skill-map） |
 || ④ | 上下文已最小化？— 子 Agent 回报应为状态+产物路径引用而非全文；跨子 Agent 传递只传路径不传内容 |
 || ⑤ | 失败回滚路径存在？（超限→挂起→升级用户，而非静默重试） |
 || ⑥ | 任务描述可执行？— 禁止占位符（"处理异常""完善细节"类模糊表述），deliverable 必须有可验证终点；PM-agent 批量产出时追加扫子任务间冲突 |
 
-## Agent→Skill 绑定表
+## 可用 Agent
 
 可用 Agent：pm-agent、programmer、error-analyst、data-analyst、ui-designer、
 document-processor、file-ops、synology-helper、memory-agent、

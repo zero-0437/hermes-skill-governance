@@ -19,6 +19,19 @@ agents:
     description: 错误诊断 + 代码审查 — 只读分析，不执行修改
     file: routes/error-analyst.yaml
     priority: 3
+  dual-review:
+    condition: 双评审 — 两步评审链
+    description: 双评审流程 — spec 合规评审后接代码质量评审
+    file: routes/dual-review.yaml
+    priority: 0
+    chain:
+      - agent: error-analyst
+        goal: spec 合规评审
+      - agent: programmer
+        goal: 代码质量评审
+    chain_step_skills:
+      dual-review@0: [requesting-code-review]
+      dual-review@1: [requesting-code-review]
   file-ops:
     condition: 文件操作/大文件处理/SSH 传输/GitHub 推送
     description: 文件操作专员 — 文件系统操作+GitHub推送
@@ -46,6 +59,10 @@ agents:
         goal: spec 合规评审
       - agent: programmer
         goal: 代码质量评审
+    chain_step_skills:
+      programmer@0: [test-driven-development]
+      programmer@1: [requesting-code-review]
+      programmer@2: [requesting-code-review]
   prompt-engineer:
     condition: Prompt 设计/优化/测试
     description: Prompt 审计专家 — SOUL.md 质量审计+改写
@@ -77,6 +94,9 @@ agents:
       - agent: programmer
         goal: 按拆解后的任务逐个实现
         batch: true
+    chain_step_skills:
+      spec-agent@0: [architecture-integrity-check]
+      spec-agent@1: []
 defaults:
   fallback_agent: pm-agent
   method: threshold
