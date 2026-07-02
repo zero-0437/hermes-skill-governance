@@ -75,22 +75,7 @@ prompt-engineer、reality-checker、docs-writer、spec-agent
 
 ## 路由引擎链
 
-route_engine 返回 `chain` 字段 → `chain_executor.py` 编排执行（调用语法见 `scripts/chain_executor.py` 开头 docstring）。
-
-主 Agent 循环：
-```
-advance → 按 status 分支：
-
-CONTINUE          → delegate_task(agent, goal, skills) → 回传 → 再次 advance
-CONTINUE_BATCH    → 遍历 next[] 逐项 delegate_task → 完成后发 batch_complete
-BATCH_PROGRESS    → 继续下一个 batch 或等待 batch_complete 信号
-RETRY             → delegate_task(programmer, fix) → 回传 target_step_idx
-BLOCKED / ERROR   → 挂起整条链，上报 diagnosis
-NEEDS_CONTEXT     → 转发 question，等待回答后重试 advance
-DONE              → 汇总 final_output_path + concerns + summary
-```
-
-工具级重试（子 Agent 协议 §四 2 次封顶）与 chain fix 循环 retry 独立。`MAX_RETRY=3`。
+route_engine 返回 `chain` 字段 → `chain_executor.py` 编排执行。status 分支处理见 `scripts/chain_executor.py` docstring。
 
 ## NEEDS_CONTEXT 转发
 
