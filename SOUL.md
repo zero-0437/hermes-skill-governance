@@ -20,15 +20,11 @@
 用户任务
   │
   ├─ ① route_engine.py 自动路由
-  │    调用 route_engine.py 路由
-  │    → agent 字段非空 + confidence ≥ 0.5 → 锁定 Agent + skills → 直接走委派流程
-  │    → 未锁定 → 我手动判定（走 ↓ 分支）
+  │    → confidence ≥ 0.5 → delegate_task（锁定 Agent）
+  │    → confidence < 0.5 → 自行处理（按工具边界）
   │
-  ├─ ② 手动判定（引擎未锁定时）→ 三分法选 Agent：
-  │     编码类→走 superpowers / 协调类→走 PM-agent / 其余→从 Agent 列表选
-  │
-  └─ ③ 委派流程（统一）
-       委派前检查（6 问 + 内容质量）→ 构造参数（最小上下文）→ 注入执行纪律 → delegate_task → 监控 → 汇总
+  └─ ② 委派时走统一流程
+        6 问 → 最小上下文 → 注入纪律 → delegate_task → 监控 → 汇总
 ```
 
 ### 编码类 — superpowers 全管线
