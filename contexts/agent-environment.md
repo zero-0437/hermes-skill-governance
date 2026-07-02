@@ -9,99 +9,6 @@
 - **产物路径**：完整报告写入 `/opt/data/.shared/{task_id}/`，回报只给路径
 - **证据**：测试结果摘要或校验和
 
-### 路由引擎链
-
-当 route_engine 返回 `chain` 字段时，按 `chain_executor.py`（方案B）编排执行。
-
-#### 调用方式
-
-三种方式，按场景选用：
-
-**`start`** — 新链首次启动，显式传入 chain_def + chain_step_skills：
-```bash
-python3 scripts/chain_executor.py start \
-  --task_id T-001 \
-  --chain_def '[{"agent":"programmer","goal":"TDD 实现 + self-review"},
-                {"agent":"error-analyst","goal":"spec 合规评审"}]' \
-  --chain_step_skills '{"programmer@0":["test-driven-development"],
-                        "programmer@1":["requesting-code-review"]}' \
-  --chain_owner programmer
-```
-
-**`run`** — 从 `index.yaml` 读取链定义（配置驱动）：
-```bash
-python3 scripts/chain_executor.py run \
-  --task_id T-001 \
-  --chain_agent programmer \
-  --last_result '{"status":"init"}'
-```
-
-**`advance`** — 核心状态机，手动传参（用于已存在链的推进）：
-```bash
-python3 scripts/chain_executor.py advance \
-  --task_id T-001 \
-  --chain_def '[...]' \
-  --chain_step_skills '{...}' \
-  --last_result '{"status":"DONE","agent":"programmer","output_path":"..."}' \
-  --chain_owner programmer
-```
-
-#### 主 Agent 循环
-
-1. 调 `chain_executor.py` → 获得下一步决策 JSON
-2. 根据 `status` 分支执行：
-
-| status | 含义 | 主 Agent 行为 |
-|--------|------|--------------|
-| `CONTINUE` | 正常推进下一步 | `delegate_task(agent=next.agent, goal=next.goal, skills=next.skills)` |
-| `CONTINUE_BATCH` | 批量展开 | 遍历 `next[]` 数组，每项 delegate_task 后以 BATCH_PROGRESS 回报 |
-| `BATCH_PROGRESS` | 单 batch 分片完成 | 继续下一个 batch 或等待 `batch_complete` 信号 |
-| `RETRY` | 修复后重审 | `delegate_task(programmer, fix)` → 修复完成后回传 `target_step_idx` |
-| `BLOCKED` | 挂起链 | 整条链阻塞，上报 `diagnosis` 给用户 |
-| `NEEDS_CONTEXT` | 等待用户 | 转发 `question` 给用户，等待回答后重试本步 |
-| `DONE` | 链完成 | 汇总 `final_output_path` + `concerns` + `summary`，回报用户 |
-| `ERROR` | 系统错误 | 上报 `diagnosis`，由主 Agent 决定是否重试 |
-
-3. 每步 `context` 自动注入上一步的产出路径
-4. batch 模式下，主 Agent 遍历完所有 batch 分片后发送 `batch_complete` 信号
-
-#### 返回格式
-
-`chain_executor.py` 每次调用返回标准 JSON：
-
-| status | `next` 格式 | `context` |
-|--------|------------|-----------|
-| `CONTINUE` | `{agent, goal, skills}`（dict） | `{chain_step, step_goal}` |
-| `CONTINUE_BATCH` | `[{agent, goal, batch_index}, ...]`（数组） | `{chain_step, step_goal, batch_count}` |
-| `BATCH_PROGRESS` | 无 | `{chain_step, step_goal}`（同 CONTINUE） |
-| `RETRY` | `{agent:"programmer", goal:"fix: ...", skills}` | `{target_step_idx, review_findings, retry_type, retry_count}` |
-| `BLOCKED` | — | `{step_idx, agent, goal, diagnosis}` |
-| `DONE` | — | `{final_output_path, concerns, summary}` |
-| `ERROR` | — | `{diagnosis}` |
-
-#### 安全与防御机制（chain_executor.py v2.0）
-
-- **task_id 路径遍历防护**：仅允许 `[a-zA-Z0-9_.-]`，`main()` 入口 + `_state_path()` 双保险
-- **原子写入**：state 文件通过 tmp → flush → fsync → `os.replace` 写入，崩溃不损坏
-- **JSON 解析异常保护**：所有 `json.loads` 有 `try/except`，非法 JSON 返回标准 ERROR
-- **空 chain_def 防御**：空数组返回 ERROR 而非 IndexError
-- **state 损坏防护**：`json.load` 异常捕获 + current_step 合法性检验 + step_idx 越界检查
-- **缺少 skills key**：返回 ERROR JSON 而非 `sys.exit(1)`
-
-#### 重试独立性
-
-工具级重试（§四 2 次封顶）与 chain fix 循环 retry 独立——fix 循环的 `retry_count` 只计数「评审→fix→重新评审」完整迭代，不计子 Agent 内部工具级重试。chain_executor.py 的 `MAX_RETRY=3`（硬编码）。
-
-### NEEDS_CONTEXT 转发
-
-当 spec-agent 返回 NEEDS_CONTEXT 时：
-
-1. 主 Agent **原样转发**子 Agent 的 NEEDS_CONTEXT 内容给用户（不加工、不删减）
-2. 等待用户回答
-3. 用户回答后，**重新委派** spec-agent（相同的 task_id，context 追加用户回答）
-4. spec-agent 第二次被委派时产出 PRD
-5. 产完 PRD 后走路由引擎链
-
 ## 二、委派参数结构
 
 每次委派携带以下结构化参数（与主 Agent SOUL.md 对齐）：
@@ -198,13 +105,7 @@ context 已明确指定的内容直接使用，禁止验证：
 
 违规判定：第 3 次重试即视为执行事故，等效于浪费预算。
 
-## 七、主 Agent 故障升级
-
-主 Agent 自身连续失败 2 次：挂起执行链 → 走 systematic-debugging 四阶段诊断（根因调查→模式分析→假设验证→修复）→ 输出诊断报告 + 可行方案 → 等待用户决策。
-
-严禁：换参数重试、换 Agent 重试、静默循环、不诊断就上报。
-
-## 八、全局红线
+## 七、全局红线
 
 除非任务明确允许且经用户二次确认，严禁：
 
@@ -214,16 +115,7 @@ context 已明确指定的内容直接使用，禁止验证：
 - `curl | bash`、`wget | sh` 等未审计远程安装脚本
 - `pkill -f`（用 `kill PID` 替代）
 
-## 八、技能缓存机制
-
-技能注册由 `/opt/data/skill-map.yaml` 定义，运行时通过 `/opt/data/.skill-cache.json` 加速委派决策。
-
-- **缓存文件**: `/opt/data/.skill-cache.json` — 由 `scripts/rebuild-cache.py` 从 skill-map.yaml 生成
-- **TTL**: 30 分钟（`ttl_minutes: 30`），过期后主 Agent 应触发重建
-- **内容**: 每个 Agent 的 auto/manual 技能列表（含 shared 全局 L1 工具）
-- **重建命令**: `cd /opt/data && uv run python scripts/rebuild-cache.py`
-
-## 九、防验证惯性三机制
+## 八、防验证惯性三机制
 
 以下三重机制对所有子 Agent 全局生效，旨在打破"先收集全再产出"的默认惯性。
 
