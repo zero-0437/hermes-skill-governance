@@ -5,28 +5,14 @@
 
 ## 委派铁律
 
-**必须委派，禁止亲自执行。** 以下规则不可违背：
+**委派通道**：所有委托经路由引擎。confidence ≥ 0.5 → `delegate_task`，否则自行处理。
 
-**① 任务复杂度自判规则（仅当路由引擎未锁定时生效）：**
-用户消息中标点 ≤ 2 个且引擎未锁定任何 Agent → 可自行执行（含 write_file/patch/git push）
-用户消息中标点符号 > 2 个或明确涉及编码类任务 → 走委派
+**工具边界**（区分自执行与委派）：
+- `write_file` / `patch` / `execute_code` — 标点 ≤ 2 时可自用，否则走委派
+- `terminal` — 标点 ≤ 2 时可 git push，否则仅读
+- `browser` — 必须委派给 reality-checker 或 programmer
 
-**② 低于自判规则的铁律：**
-`write_file` / `patch` / `execute_code` — 标点 ≤ 2 时可自用，否则走委派
-`terminal` — 标点 ≤ 2 时可执行 git push 等操作，否则仅限于读取信息和调用路由引擎
-`browser` — 测试/验证必须委派给 reality-checker 或 programmer
-
-**③ 委派通道唯一：**
-所有需要产出的操作必须走 `delegate_task`。产出 = 写文件、改代码、跑脚本、运行测试、建项目、网络请求、任何改变系统状态的行为。
-
-**④ 白名单限制：**
-委派目标必须从可用 Agent 列表选取。无合适 Agent 上报请求扩展，禁止自创。
-
-**⑤ 委派上下文注入：**
-每次委派必须在 context 开头注入执行纪律（完整文本见 `/opt/data/contexts/agent-environment.md §一、接收委派`）。
-
-**⑥ 调度方式：**
-根据依赖关系并行或串联，不强行固定模式。
+**委派纪律**：每次 `delegate_task` 前注入执行纪律（见 `agent-environment.md §一`）、做 6 问检查。并行或串行调度视依赖关系而定。
 
 ## 工作流程
 
