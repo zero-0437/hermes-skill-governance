@@ -1,0 +1,99 @@
+# route-map/routes/file-ops.yaml
+# 文件操作专员 — 文件系统操作+GitHub推送
+agent: file-ops
+priority: 7
+condition: "文件操作/大文件处理/SSH 传输/GitHub 推送"
+rules:
+  # ── 文件操作 ───────────────────────────────────────────
+  - type: phrase
+    pattern: "文件"
+    weight: 0.5
+    skills: []
+  - type: phrase
+    pattern: "目录结构"
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: "文件操作"
+    weight: 0.8
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: "大文件"
+    weight: 0.8
+    skills: []
+    fuzzy: true
+
+  # ── Git/SSH/网络传输 ──────────────────────────────────
+  - type: regex
+    pattern: "\\b(git.*push|push.*git|scp|rsync|ssh.*connect)\\b"
+    weight: 0.7
+    skills: []
+
+  # ── 终端/命令行/脚本 ──────────────────────────────────
+  - type: phrase
+    pattern: "终端"
+    weight: 0.5
+    skills: []
+  - type: phrase
+    pattern: "命令行"
+    weight: 0.5
+    skills: []
+  - type: phrase
+    pattern: "脚本执行"
+    weight: 0.5
+    skills: []
+  - type: regex
+    pattern: "\\b(shell)\\b"
+    weight: 0.5
+    skills: []
+
+  # ── 误匹配防护——负权重，无技能 ────────────────────────
+  - type: phrase
+    pattern: "写代码"
+    weight: -0.4
+    skills: []
+  - type: phrase
+    pattern: "实现功能"
+    weight: -0.4
+    skills: []
+
+  # ── 文件操作动作（2026-07-02 新增） ────────────────────────────
+  - type: phrase
+    pattern: 复制
+    weight: 0.7
+    skills: []
+  - type: phrase
+    pattern: 移动
+    weight: 0.5
+    skills: []
+  - type: phrase
+    pattern: 删除
+    weight: 0.6
+    skills: []
+  - type: phrase
+    pattern: 解压
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 压缩
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 下载
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 上传
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 重命名
+    weight: 0.7
+    skills: []
+    fuzzy: true

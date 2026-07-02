@@ -136,3 +136,21 @@ rules:
     pattern: (pip install|uv.*install|安装.*失败|依赖.*问题)
     weight: 0.9
     skills: [postmortem-analyst, network-debugging]
+
+  # ── 报错/日志关键词（2026-07-02 新增） ──────────────────────────
+  - type: phrase
+    pattern: 报错
+    weight: 0.8
+    skills: []
+    fuzzy: true
+
+  # ── 代码分析（2026-07-02 补充）──────────────────────────────────
+  - type: phrase
+    pattern: 分析代码
+    weight: 0.8
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: phrase
+    pattern: 日志
+    weight: 0.7
+    skills: []

@@ -1,0 +1,90 @@
+# route-map/routes/document-processor.yaml
+# 文档处理与转换 — 格式转换+公文排版
+agent: document-processor
+priority: 6
+condition: 文档格式转换/PDF/OCR/Office 文件处理
+rules:
+  # ── 文档转换/格式转换 ──────────────────────────────────
+  - type: phrase
+    pattern: 文档转换
+    weight: 0.9
+    skills:
+      - doc-coauthoring
+      - engineering-technical-writer
+    fuzzy: true
+  - type: phrase
+    pattern: 格式转换
+    weight: 0.9
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 文档格式
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+      - engineering-technical-writer
+    fuzzy: true
+  - type: phrase
+    pattern: markdown 转换
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 转换为
+    weight: 0.5
+    skills: []
+
+  # ── OCR/识别/扫描件 ────────────────────────────────────
+  - type: phrase
+    pattern: 扫描件
+    weight: 0.9
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 识别
+    weight: 0.9
+    skills: []
+  - type: phrase
+    pattern: 提取文字
+    weight: 0.8
+    skills: []
+    fuzzy: true
+
+  # ── 特定格式处理 ───────────────────────────────────────
+  - type: regex
+    pattern: \b(PDF|Word|Excel|PPT|OCR)\b
+    weight: 0.9
+    skills: []
+  - type: regex
+    pattern: \b(docx)\b
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: pdf.*导出
+    weight: 0.8
+    skills: []
+
+  # ── 公文/排版 ──────────────────────────────────────────
+  - type: phrase
+    pattern: 公文
+    weight: 0.8
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 排版
+    weight: 0.8
+    skills: []
+    fuzzy: true
+
+  # ── 文档合并/拆分（2026-07-02 新增） ──────────────────────────
+  - type: phrase
+    pattern: 合并文档
+    weight: 0.9
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+  - type: phrase
+    pattern: 拆分文档
+    weight: 0.7
+    skills:
+      - doc-coauthoring
+    fuzzy: true

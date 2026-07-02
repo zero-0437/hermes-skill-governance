@@ -50,3 +50,27 @@ rules:
     pattern: 冲突
     weight: 1.0
     skills: [multi-agent-swarm]
+
+  # ── 技能训练 → train-skills ──────────────────────────
+  - type: phrase
+    pattern: 训练技能
+    weight: 0.8
+    skills: [train-skills]
+  - type: phrase
+    pattern: 技能训练
+    weight: 0.8
+    skills: [train-skills]
+  - type: regex
+    pattern: \\b(train.skill|skill.training)\\b
+    weight: 0.7
+    skills: [train-skills]
+
+  # ── 路由引擎 → zero-token-routing ───────────────────
+  - type: phrase
+    pattern: 路由引擎
+    weight: 0.9
+    skills: [zero-token-routing]
+  - type: regex
+    pattern: \\b(route.engine|zero.token|zero.token.routing)\\b
+    weight: 0.8
+    skills: [zero-token-routing]

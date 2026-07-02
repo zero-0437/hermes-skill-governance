@@ -1,0 +1,60 @@
+# route-map/routes/reality-checker.yaml
+# 集成测试专家 — 阻止幻想式审批
+agent: reality-checker
+priority: 11
+condition: 集成测试/端到端验证/现实检验
+rules:
+  # ── 测试/验证 ──────────────────────────────────────────
+  - type: phrase
+    pattern: 集成测试
+    weight: 1.2
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 端到端
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 现实检验
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 验收
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 回归测试
+    weight: 0.7
+    skills: []
+  - type: regex
+    pattern: \b(dogfood|e2e|end.to.end|smoke.*test|verification|validation)\b
+    weight: 0.9
+    skills: []
+  - type: phrase
+    pattern: 检查是否真的能用
+    weight: 1.0
+    fuzzy: true
+    skills: []
+
+  # ── 尝试/验证短语（2026-07-02 新增） ───────────────────────────
+  - type: phrase
+    pattern: 试试
+    weight: 0.5
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 验一下
+    weight: 0.5
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 测一下
+    weight: 0.5
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 验证一下
+    weight: 0.6
+    skills: []
+    fuzzy: true

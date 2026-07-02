@@ -51,13 +51,43 @@ rules:
     fuzzy: true
     skills: [systematic-debugging, codebase-inspection]
   - type: regex
-    pattern: \b(bug)\b
+    pattern: (?<![a-zA-Z0-9_])(bug)(?![a-zA-Z0-9_])
     weight: 0.8
     skills: [systematic-debugging, codebase-inspection]
   - type: regex
-    pattern: \b(fix)\b
+    pattern: (?<![a-zA-Z0-9_])(fix)(?![a-zA-Z0-9_])
     weight: 0.7
     skills: [systematic-debugging, codebase-inspection]
+
+  # ── 修改/优化/调整/修正/更新/删除 → systematic-debugging + codebase-inspection ───
+  - type: regex
+    pattern: 改(代码|文件|配置|bug|逻辑|函数|接口|功能|一下|成)
+    weight: 0.7
+    skills: [systematic-debugging, codebase-inspection]
+  - type: phrase
+    pattern: 修改
+    weight: 0.8
+    skills: [systematic-debugging, codebase-inspection]
+  - type: phrase
+    pattern: 优化
+    weight: 0.7
+    skills: [systematic-debugging]
+  - type: phrase
+    pattern: 调整
+    weight: 0.7
+    skills: [systematic-debugging]
+  - type: phrase
+    pattern: 修正
+    weight: 0.8
+    skills: [systematic-debugging, codebase-inspection]
+  - type: phrase
+    pattern: 更新
+    weight: 0.7
+    skills: [systematic-debugging]
+  - type: phrase
+    pattern: 删除
+    weight: 0.6
+    skills: [systematic-debugging]
 
   # ── 重构 → systematic-debugging ──────────────────────────
   - type: phrase
@@ -104,17 +134,78 @@ rules:
     weight: 0.8
     skills: [compatibility-audit]
   - type: regex
-    pattern: \b(install)\b
+    pattern: (?<![a-zA-Z0-9_])(install)(?![a-zA-Z0-9_])
     weight: 0.7
     skills: [compatibility-audit]
   - type: regex
-    pattern: \b(build)\b
+    pattern: (?<![a-zA-Z0-9_])(build)(?![a-zA-Z0-9_])
     weight: 0.7
     skills: [compatibility-audit]
   - type: regex
     pattern: \b(compile)\b
     weight: 0.7
     skills: [compatibility-audit]
+
+  # ── 快速原型/概念验证 → quick-prototype ────────────
+  - type: phrase
+    pattern: 快速原型
+    weight: 0.8
+    skills: [quick-prototype]
+  - type: phrase
+    pattern: 原型验证
+    weight: 0.7
+    skills: [quick-prototype]
+    fuzzy: true
+
+  # ── 合并冲突 → resolving-merge-conflicts ────────────
+  - type: phrase
+    pattern: 合并冲突
+    weight: 0.9
+    skills: [resolving-merge-conflicts]
+    fuzzy: true
+  - type: regex
+    pattern: \\b(merge.conflict|conflict.resolve)\\b
+    weight: 0.8
+    skills: [resolving-merge-conflicts]
+
+  # ── 垂直切片 → vertical-slice-tdd ───────────────────
+  - type: phrase
+    pattern: 垂直切片
+    weight: 0.8
+    skills: [vertical-slice-tdd]
+  - type: regex
+    pattern: \\b(vertical.slice)\\b
+    weight: 0.7
+    skills: [vertical-slice-tdd]
+
+  # ── 模型切换 → programmer-model-switch ─────────────
+  - type: phrase
+    pattern: 模型切换
+    weight: 0.8
+    skills: [programmer-model-switch]
+  - type: phrase
+    pattern: 切换模型
+    weight: 0.8
+    skills: [programmer-model-switch]
+  - type: regex
+    pattern: \\b(model.switch)\\b
+    weight: 0.7
+    skills: [programmer-model-switch]
+
+  # ── 工具集成 → tool-integration ────────────────────
+  - type: phrase
+    pattern: 工具集成
+    weight: 0.8
+    skills: [tool-integration]
+  - type: phrase
+    pattern: 集成外部工具
+    weight: 0.8
+    skills: [tool-integration]
+    fuzzy: true
+  - type: regex
+    pattern: \\b(tool.integrat|deploy.*tool)\\b
+    weight: 0.7
+    skills: [tool-integration]
 
   # ── 语言匹配 → 通用编码，无特殊技能 ─────────────────────
   - type: regex
@@ -141,7 +232,7 @@ rules:
     weight: -0.5
     skills: []
   - type: regex
-    pattern: \\b(NAS|Prompt)\\b
+    pattern: (?<![a-zA-Z0-9_])(NAS|Prompt)(?![a-zA-Z0-9_])
     weight: -0.5
     skills: []
 
