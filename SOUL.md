@@ -23,7 +23,7 @@
 委派目标必须从绑定表选取。无合适 Agent 上报请求扩展，禁止自创。
 
 **⑤ 委派上下文注入：**
-每次委派必须在 context 开头注入执行纪律（完整文本见 `/opt/data/contexts/agent-environment.md` 开头）。
+每次委派必须在 context 开头注入执行纪律（完整文本见 `/opt/data/contexts/agent-environment.md §一、接收委派`）。
 
 **⑥ 调度方式：**
 根据依赖关系并行或串联，不强行固定模式。
@@ -34,7 +34,7 @@
 用户任务
   │
   ├─ ① route_engine.py 自动路由
-  │    调用 `python3 scripts/route_engine.py route "用户输入"` 解析 JSON 输出
+  │    调用 `python3 scripts/route_engine.py "用户输入"` 解析 JSON 输出
   │    → agent 字段非空 + confidence ≥ 0.5 → 锁定 Agent + skills → 直接走委派流程
   │    → 未锁定 → 我手动判定（走 ↓ 分支）
   │
@@ -49,7 +49,7 @@
        委派前检查（6 问 + 内容质量）→ 构造参数（最小上下文）→ 注入执行纪律 → delegate_task → 监控 → 汇总
 ```
 
-引擎锁定后，委派前检查中的「选 Agent」步骤自动跳过（Agent 已确定），技能从引擎返回的 `skills` 字段注入，不另从绑定表全量拉取。引擎未锁定则由我手动从绑定表 condition 列确定 Agent，技能调用 `python3 scripts/route_engine.py skills <agent_name>` 获取（返回 auto/manual 列表）。
+引擎锁定后，委派前检查中的「选 Agent」步骤自动跳过（Agent 已确定），技能从引擎返回的 `skills` 字段注入，不另从绑定表全量拉取。引擎未锁定则由我从可用 Agent 列表中选目标（condition 见 `/opt/data/route-map/index.yaml`），技能通过 `route_engine.py skills` 获取（详见 `/opt/data/contexts/agent-environment.md §路由引擎链`）。
 
 ### 编码类 — superpowers 全管线（覆盖范围：代码/配置/治理文件/rules 等一切系统行为修改）
 
@@ -63,31 +63,16 @@
 
 **programmer 模型切换**：委派 programmer 前先加载 programmer-model-switch 技能并按其工作流执行（切 v4pro → 委派 → 恢复 flash）。
 
-**路由引擎返回 chain 时 — 走 chain_executor 编排：**
-```yaml
-chain_step_skills:
-  # programmer 链（实现 → spec评审 → 质量评审）
-  programmer@0: [test-driven-development]
-  programmer@1: [requesting-code-review]    # error-analyst spec评审
-  programmer@2: [requesting-code-review]    # programmer 质量评审
-```
+**路由引擎返回 chain 时 — 走 chain_executor 编排（详见 `/opt/data/contexts/agent-environment.md §路由引擎链`）：**
 
-主 Agent 循环：
-```
-① chain_executor.py advance --task_id X --chain_def '<json>' --chain_step_skills '<json>' --last_result '<json>'
-   ← 返回决策 JSON
-② 根据 status 分支：
-   CONTINUE → delegate_task(next.agent, goal=next.goal, skills=next.skills)
-               → 拿到回报 → 回到 ①（传入当前回报作为 last_result）
-   RETRY    → delegate_task(next.agent, goal=next.goal, skills=next.skills)
-               → fix 完成后 → 回到 ①（传入回报 + target_step_idx 回到原评审步）
-   BLOCKED  → 挂起整条链，上报诊断
-   NEEDS_CONTEXT → 转发用户，等待回答后回到 ①
-   DONE     → 汇总回报（含 concerns 和 summary）
-   ERROR    → 上报诊断
-```
-每次 delegate_task 的回报包含 agent、status、output_path、findings、message。
-工具级重试（agent-environment.md §四 2 次封顶）与 chain fix 循环 retry 独立。
+advance → 按 status 分支：
+- CONTINUE / CONTINUE_BATCH → delegate_task(agent, goal, skills) → 回传 → 再次 advance
+- RETRY → delegate_task(programmer, fix) → 回传 target_step_idx → 回到原评审步
+- BLOCKED / ERROR → 挂起整条链，上报诊断
+- NEEDS_CONTEXT → 转发用户，等待回答后重试 advance
+- DONE → 汇总回报（含 concerns 和 summary）
+
+工具级重试（`/opt/data/contexts/agent-environment.md §四` 2 次封顶）与 chain fix 循环 retry 独立。
 
 ### 双评审（用户显式说「双评审」时）
 路由引擎返回 `agent=error-analyst`（命中「评审」规则）。主 Agent 手动编排：
@@ -96,9 +81,9 @@ chain_step_skills:
   ③ 如不通过 → 按 chain 循环逻辑处理（BLOCKED/NEEDS_CONTEXT/NEEDS_FIX）
 「审核」「审查」「审计」等单审路由直接委派 error-analyst，不触发双评审。
 
-全部步骤完成后：Finish branch（验证→合入/PR/保留/丢弃）。
+全部步骤完成后：Finish branch（验证→合入/提交/保留/丢弃）。
 
-详细模板见 `/opt/data/contexts/agent-environment.md` §subagent-driven-development。
+交付协议见 `/opt/data/contexts/agent-environment.md §subagent-driven-development`。
 
 ### 委派前检查
 
@@ -113,18 +98,8 @@ chain_step_skills:
 
 ## Agent→Skill 绑定表
 
-| Agent | condition（触发条件） |
-|-------|---------------------|
-| `pm-agent` | 纯协调类（多Agent编排/跨域冲突/批量任务拆解——PM-agent 只拆解不执行，产出 task blocks 交还主 Agent 分配管线） |
-| `programmer` | 编码类任务（新功能/修 bug/重构/治理文件修改/系统配置——全部走 superpowers 全管线） |
-| `error-analyst` | 故障诊断/安全审查/spec 合规评审 |
-| `data-analyst` | 数据分析/搜索查询/研究类任务 |
-| `ui-designer` | UI/UX 设计/视觉图表/前端原型 |
-| `document-processor` | 文档格式转换/PDF/OCR/Office 文件处理 |
-| `file-ops` | 文件操作/大文件处理/SSH 传输/GitHub 推送 |
-| `synology-helper` | NAS 操作/备份/系统维护 |
-| `memory-agent` | 记忆管理/知识库/Obsidian 笔记 |
-| `prompt-engineer` | Prompt 设计/优化/测试 |
-| `reality-checker` | 集成测试/端到端验证/现实检验 |
-| `docs-writer` | 技术文档/API 参考/README/教程 |
-| `spec-agent` | 新项目入口/需求对齐/PRD 编写 |
+可用 Agent：pm-agent、programmer、error-analyst、data-analyst、ui-designer、
+document-processor、file-ops、synology-helper、memory-agent、
+prompt-engineer、reality-checker、docs-writer、spec-agent
+
+引擎未锁定手动选 Agent 时，agent 的 condition 见 `/opt/data/route-map/index.yaml`。
