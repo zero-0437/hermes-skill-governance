@@ -32,6 +32,10 @@ rules:
     weight: 0.8
     skills: [postmortem-analyst, network-debugging]
   - type: phrase
+    pattern: 诊断
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: phrase
     pattern: 诊断错误
     weight: 1.0
     skills: [postmortem-analyst, network-debugging]
@@ -110,6 +114,11 @@ rules:
     fuzzy: true
 
   # ── 误匹配防护——负权重，无技能 ────────────────────────
+  # ── 双评审独占冻结：防止"评审"/"审查"模糊截胡 dual-review ──
+  - type: phrase
+    pattern: 双评审
+    weight: -1.0
+    skills: []
   - type: phrase
     pattern: 修复
     weight: -0.3
@@ -130,27 +139,9 @@ rules:
   # ── 编译/环境错误（2026-06-30 新增） ────────────────────────
   - type: regex
     pattern: (编译错误|构建失败|build fail|import.*fail|modulenotfound|permission denied)
-    weight: 1.0
+    weight: 1.8
     skills: [postmortem-analyst, network-debugging]
   - type: regex
     pattern: (pip install|uv.*install|安装.*失败|依赖.*问题)
     weight: 0.9
     skills: [postmortem-analyst, network-debugging]
-
-  # ── 报错/日志关键词（2026-07-02 新增） ──────────────────────────
-  - type: phrase
-    pattern: 报错
-    weight: 0.8
-    skills: []
-    fuzzy: true
-
-  # ── 代码分析（2026-07-02 补充）──────────────────────────────────
-  - type: phrase
-    pattern: 分析代码
-    weight: 0.8
-    skills: [engineering-security-engineer]
-    fuzzy: true
-  - type: phrase
-    pattern: 日志
-    weight: 0.7
-    skills: []

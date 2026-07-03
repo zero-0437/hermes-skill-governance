@@ -12,15 +12,13 @@ import yaml
 # ── 模块级缓存 ─────────────────────────────────────────────────────
 _route_map_cache: dict | None = None
 _skill_cache: dict | None = None
-_has_fuzzy_cache: bool | None = None
 
 
 def _clear_cache():
     """安全清空所有模块级缓存（路由规则 + 技能 + 模糊检测）。"""
-    global _route_map_cache, _skill_cache, _has_fuzzy_cache
+    global _route_map_cache, _skill_cache
     _route_map_cache = None
     _skill_cache = None
-    _has_fuzzy_cache = None
 
 # ── 模糊匹配常量 ───────────────────────────────────────────────────
 FUZZY_OVERLAP_THRESHOLD = 0.6   # keyword 模糊重叠率阈值
@@ -28,7 +26,7 @@ CJK_CHAR_RE = re.compile(r'[\u4e00-\u9fff]')
 CJK_BLOCK_RE = re.compile(r'[\u4e00-\u9fff]+')
 EN_WORD_RE = re.compile(r'[a-z][a-z0-9_]*')
 
-# ── 路径解析 ──────────────────────────────────────────────────────
+# ── 路径解析
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 _ROUTE_MAP_DIR = os.path.join(_SCRIPT_DIR, "..", "route-map")
 _SKILL_CACHE_FILE = os.path.join(_SCRIPT_DIR, "..", ".skill-cache.json")
@@ -62,7 +60,10 @@ def load_route_map() -> dict:
         "defaults": defaults,
         "overrides": overrides,
         "agents": {},
+        "chain_keywords": [],
     }
+
+    chain_kw_index = {}
 
     for name, info in agents_map.items():
         file_path = os.path.join(_ROUTE_MAP_DIR, info["file"])
@@ -70,12 +71,90 @@ def load_route_map() -> dict:
             raise FileNotFoundError(f"Agent 规则文件不存在: {file_path}")
         with open(file_path, "r", encoding="utf-8") as f:
             agent_data = yaml.safe_load(f)
+
+        # ── chain / chain_ref 处理（chain_ref 优先） ──
+        chain_ref = info.get("chain_ref")
+        if chain_ref:
+            chain_file = os.path.join(_ROUTE_MAP_DIR, "chains", f"{chain_ref}.yaml")
+            if os.path.exists(chain_file):
+                with open(chain_file, "r", encoding="utf-8") as f:
+                    chain_data = yaml.safe_load(f)
+                chain = chain_data.get("steps", [])
+                chain_step_skills = chain_data.get("chain_step_skills", {})
+                report_only = chain_data.get("report_only", False)
+                # ── chain_keywords 反向索引 ──
+                chain_keywords_raw = chain_data.get("chain_keywords", [])
+                for kw in chain_keywords_raw:
+                    kw_lower = kw.lower().strip()
+                    if kw_lower:
+                        chain_kw_index.setdefault(kw_lower, []).append({
+                            "chain_name": chain_ref,
+                            "owner": name,
+                            "steps": chain,
+                            "chain_step_skills": chain_step_skills,
+                            "report_only": report_only,
+                        })
+            else:
+                print(f"[WARNING] chain_ref 文件不存在: {chain_file}")
+                chain = []
+                chain_step_skills = {}
+                report_only = False
+        else:
+            chain = info.get("chain", [])
+            chain_step_skills = info.get("chain_step_skills", {})
+            report_only = False
+
         route_map["agents"][name] = {
             "rules": agent_data.get("rules", []),
             "priority": info.get("priority", 99),
             "condition": info.get("condition", ""),
-            "chain": info.get("chain", []),
+            "chain": chain,
+            "chain_step_skills": chain_step_skills,
+            "report_only": report_only,
         }
+
+    # (chain_kw_index 继续供下属目录扫描追加)
+
+    # ── 扫描 chains/ 目录，加载未被 chain_ref 引用的 chain keywords ──
+    chains_dir = os.path.join(_ROUTE_MAP_DIR, "chains")
+    if os.path.isdir(chains_dir):
+        for fname in sorted(os.listdir(chains_dir)):
+            if not fname.endswith(".yaml"):
+                continue
+            chain_name = fname.replace(".yaml", "")
+            already_loaded = any(
+                entry.get("chain_name") == chain_name
+                for entries in chain_kw_index.values()
+                for entry in entries
+            )
+            if already_loaded:
+                continue
+            chain_path = os.path.join(chains_dir, fname)
+            try:
+                with open(chain_path, "r", encoding="utf-8") as f:
+                    chain_data = yaml.safe_load(f)
+                chain_keywords_raw = chain_data.get("chain_keywords", [])
+                if not chain_keywords_raw:
+                    continue
+                owner = chain_data.get("owner", "")
+                if not owner:
+                    continue
+                for kw in chain_keywords_raw:
+                    kw_lower = kw.lower().strip()
+                    if kw_lower:
+                        chain_kw_index.setdefault(kw_lower, []).append({
+                            "chain_name": chain_name,
+                            "owner": owner,
+                            "steps": chain_data.get("steps", []),
+                            "chain_step_skills": chain_data.get("chain_step_skills", {}),
+                            "report_only": chain_data.get("report_only", False),
+                        })
+            except Exception as e:
+                print(f"[WARNING] 加载 chain '{fname}' 失败: {e}")
+    route_map["chain_keywords"] = [
+        {"pattern": kw, "entries": entries}
+        for kw, entries in chain_kw_index.items()
+    ]
 
     _route_map_cache = route_map
     return route_map
@@ -160,52 +239,6 @@ def _score_skill_matches(text: str, owners: dict[str, list[str]]) -> tuple[dict[
 # ══════════════════════════════════════════════════════════════════
 
 
-def decompose_keywords(text: str) -> list[str]:
-    """纯规则中文/英文关键词拆解，无 NLP 依赖。
-
-    输出：拆解后的候选关键词列表（去重、保留顺序）。
-    """
-    text = text.lower().strip()
-    if not text:
-        return []
-
-    seen = set()
-    keywords = []
-
-    def _add(kw: str):
-        if kw and kw not in seen:
-            seen.add(kw)
-            keywords.append(kw)
-
-    # ① 英文单词（按空白/标点分割）
-    for w in EN_WORD_RE.findall(text):
-        _add(w)
-
-    # ② 提取连续 CJK 字符序列
-    cjk_blocks = CJK_BLOCK_RE.findall(text)
-    full_cjk = "".join(cjk_blocks)
-
-    if full_cjk:
-        # ③ 单字（character unigrams）
-        for c in full_cjk:
-            _add(c)
-
-        # ④ 2-gram 滑动窗口
-        for i in range(len(full_cjk) - 1):
-            _add(full_cjk[i:i+2])
-
-        # ⑤ 3-gram 滑动窗口
-        for i in range(len(full_cjk) - 2):
-            _add(full_cjk[i:i+3])
-
-        # ⑥ 完整 CJK 序列
-        _add(full_cjk)
-
-    # ⑦ 全文作为兜底
-    _add(text)
-
-    return keywords
-
 
 def _is_subsequence(chars: list[str], sequence: list[str]) -> bool:
     """检查 chars 是否按顺序出现在 sequence 中（子序列匹配）。"""
@@ -262,26 +295,6 @@ def match_fuzzy_keyword(normalized: str, pattern: str) -> bool:
     # 中英文混合：字符重叠率必须达标
     ratio = _char_overlap_ratio(pattern_lower, normalized)
     return ratio >= FUZZY_OVERLAP_THRESHOLD
-
-
-def _detect_fuzzy_rules(route_map: dict) -> bool:
-    """检测 route-map 中是否有任何规则启用了 fuzzy。结果缓存。"""
-    global _has_fuzzy_cache
-    if _has_fuzzy_cache is not None:
-        return _has_fuzzy_cache
-
-    for _name, data in route_map.get("agents", {}).items():
-        for rule in data.get("rules", []):
-            if rule.get("fuzzy", False):
-                _has_fuzzy_cache = True
-                return True
-    for override in route_map.get("overrides", []):
-        for rule in override.get("rules", []):
-            if rule.get("fuzzy", False):
-                _has_fuzzy_cache = True
-                return True
-    _has_fuzzy_cache = False
-    return False
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -443,7 +456,9 @@ def route(user_input: str) -> dict:
                 for skill in rule.get("skills", []):
                     matched_skills.add(skill)
                 auto_skills, _manual_skills = _lookup_skills(agent_name)
-                chain = route_map.get("agents", {}).get(agent_name, {}).get("chain", [])
+                agent_data = route_map.get("agents", {}).get(agent_name, {})
+                chain = agent_data.get("chain", [])
+                chain_step_skills = agent_data.get("chain_step_skills", {})
                 return {
                     "agent": agent_name,
                     "confidence": 1.0,
@@ -456,7 +471,41 @@ def route(user_input: str) -> dict:
                     "auto_skills": auto_skills,
                     "manual_skills": sorted(matched_skills),
                     "chain": chain or None,
+                    "chain_step_skills": chain_step_skills,
+                    "report_only": agent_data.get("report_only", False),
                 }
+
+    # ── 检查 chain keywords（直接匹配，跳过 agent evaluate） ──
+    chain_kw_list = route_map.get("chain_keywords", [])
+    matched_chain_entries = []
+    for item in chain_kw_list:
+        rule = {"type": "phrase", "pattern": item["pattern"], "fuzzy": False}
+        if match_rule(normalized, rule):
+            for entry in item["entries"]:
+                matched_chain_entries.append((item["pattern"], entry))
+    if matched_chain_entries:
+        # 按 keyword 长度降序（最精确优先），再按 owner priority 升序
+        agents = route_map.get("agents", {})
+        matched_chain_entries.sort(key=lambda x: (
+            -len(x[0]),  # keyword length descending
+            agents.get(x[1]["owner"], {}).get("priority", 99)  # priority ascending
+        ))
+        matched_kw, matched_info = matched_chain_entries[0]
+        return {
+            "agent": matched_info["owner"],
+            "confidence": 1.0,
+            "method": "chain_keyword",
+            "details": {
+                "scores": [],
+                "matched_rules": [f"chain_keyword:{matched_kw}"],
+                "fallback_reason": "",
+            },
+            "auto_skills": [],
+            "manual_skills": [],
+            "chain": matched_info["steps"],
+            "chain_step_skills": matched_info["chain_step_skills"],
+            "report_only": matched_info.get("report_only", False),
+        }
 
     # ── 评估 + 决策 ────────────────────────────────────────────
     scored_results = evaluate(user_input, route_map)               # (name, score, matched_rules)
@@ -494,10 +543,11 @@ def route(user_input: str) -> dict:
         result["auto_skills"] = auto_skills
         result["manual_skills"] = sorted(matched_skills) if matched_skills else []
 
-        # ── 链条提取：从 index.yaml 的 Agent chain 字段 ──
-        chain = route_map.get("agents", {}).get(target, {}).get("chain", [])
-        if chain:
-            result["chain"] = chain
+        # ── 链条提取：从 route_map 缓存直接读取（load_route_map 已解析） ──
+        agent_data = route_map.get("agents", {}).get(target, {})
+        result["chain"] = agent_data.get("chain", [])
+        result["chain_step_skills"] = agent_data.get("chain_step_skills", {})
+        result["report_only"] = agent_data.get("report_only", False)
 
     return result
 

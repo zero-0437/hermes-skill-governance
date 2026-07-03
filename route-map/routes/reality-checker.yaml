@@ -37,7 +37,7 @@ rules:
     fuzzy: true
     skills: []
 
-  # ── 尝试/验证短语（2026-07-02 新增） ───────────────────────────
+  # ── 尝试/验证短语 ─────────────────────────────────
   - type: phrase
     pattern: 试试
     weight: 0.5
@@ -58,3 +58,72 @@ rules:
     weight: 0.6
     skills: []
     fuzzy: true
+  - type: phrase
+    pattern: 核实一下
+    weight: 0.6
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 交叉验证
+    weight: 0.8
+    skills: []
+
+  # ── 截图/视觉证据（SOUL.md §3 强制工作流第2条：Playwright 完整截图捕获） ──
+  - type: phrase
+    pattern: 截图
+    weight: 0.8
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 视觉验证
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 响应式
+    weight: 0.7
+    skills: []
+    fuzzy: true
+
+  # ── 差距分析（SOUL.md §3 第4条：规格说明 vs. 实现差距分析） ──────────
+  - type: phrase
+    pattern: 差距分析
+    weight: 0.9
+    skills: []
+  - type: phrase
+    pattern: 实现对比
+    weight: 0.7
+    skills: []
+
+  # ── 质量判定/生产就绪（SOUL.md §4 交付物：质量评分+生产就绪判定） ─────
+  - type: phrase
+    pattern: 上线检查
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 发布审核
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 生产就绪
+    weight: 0.9
+    skills: []
+
+  # ── 用户旅程/流程验证（SOUL.md §3 第3条） ───────────────────────
+  - type: phrase
+    pattern: 用户旅程
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 用户流程
+    weight: 0.7
+    skills: []
+
+  # ── 评审/质量评估（SOUL.md §1 阻止幻想式审批+§4 质量评分） ─────────
+  - type: phrase
+    pattern: 质量评估
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 质量评审
+    weight: 0.7
+    skills: []

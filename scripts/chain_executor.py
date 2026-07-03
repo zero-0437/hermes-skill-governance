@@ -35,10 +35,13 @@ try:
 except ImportError:
     yaml = None
 
+# ── 路径计算 ────────────────────────────────────
+_SCRIPT_DIR_CHAIN = os.path.dirname(os.path.abspath(__file__))
+
 # ── 默认配置 ────────────────────────────────────
 MAX_RETRY = 3
 STATE_DIR = "/opt/data/.shared"
-INDEX_YAML_PATH = "/opt/data/route-map/index.yaml"
+INDEX_YAML_PATH = os.path.join(_SCRIPT_DIR_CHAIN, "..", "route-map", "index.yaml")
 
 # ── per-step 合法回报状态映射 ────────────────────
 STEP_VALID_STATUSES = {
@@ -47,6 +50,18 @@ STEP_VALID_STATUSES = {
     "quality-review":["APPROVE", "NEEDS_FIX", "BLOCKED", "NEEDS_CONTEXT"],
     "fix":           ["DONE", "BLOCKED", "NEEDS_CONTEXT"],
 }
+
+# ── 新增 step type 常量 ───────────────────────────────────
+STEP_TYPE_SERIAL = "serial"
+STEP_TYPE_PARALLEL = "parallel"
+STEP_TYPE_INTERACTIVE = "interactive"
+STEP_TYPE_LOOP = "loop"
+
+# 新状态码（返回给主 Agent 的决策）
+STATUS_CONTINUE_PARALLEL = "CONTINUE_PARALLEL"
+STATUS_CONTINUE_LOOP = "CONTINUE_LOOP"
+STATUS_BRANCHES_COMPLETE = "BRANCHES_COMPLETE"
+STATUS_LOOP_COMPLETE = "LOOP_COMPLETE"
 
 # goal 中是否包含这些关键词来推断步骤类型
 STEP_TYPE_KEYWORDS = {
@@ -66,10 +81,152 @@ def _infer_step_type(goal: str) -> str:
     return "tdd"  # 默认
 
 
+def _get_step_type(step: dict) -> str:
+    """判断 step 类型：serial / parallel / interactive / loop"""
+    return step.get("type", STEP_TYPE_SERIAL)
+
+
+def _build_parallel_result(step: dict, step_idx: int) -> dict:
+    """为 parallel 步骤构建 CONTINUE_PARALLEL 响应。
+
+    返回结构包含 branches 列表和 join_strategy，
+    主 Agent 收到后需并行 delegate_task 所有 branches。
+    """
+    branches = step.get("branches", [])
+    if not branches:
+        return {"status": "ERROR", "diagnosis": f"step[{step_idx}] parallel 没有 branches"}
+
+    branch_tasks = []
+    for b in branches:
+        task = {
+            "agent": b["agent"],
+            "goal": b["goal"],
+            "context": b.get("context", ""),
+        }
+        if b.get("keywords"):
+            task["keywords"] = b["keywords"]
+        branch_tasks.append(task)
+
+    return {
+        "status": STATUS_CONTINUE_PARALLEL,
+        "next": branch_tasks,
+        "join_strategy": step.get("join_strategy", "separate"),
+        "branch_count": len(branches),
+        "context": {"chain_step": step_idx, "step_type": STEP_TYPE_PARALLEL},
+    }
+
+
+def _build_interactive_result(step: dict, step_idx: int) -> dict:
+    """为 interactive 步骤构建 NEEDS_CONTEXT 响应（带 interactive 标记）。
+
+    主 Agent 收到后应暂停链并询问用户确认。
+    """
+    result = {
+        "status": "NEEDS_CONTEXT",
+        "step_idx": step_idx,
+        "agent": step["agent"],
+        "goal": step["goal"],
+        "question": f"[{step['agent']}] 已完成: {step['goal']}\n"
+                    f"请确认结果，或补充修改意见后继续下一步。",
+        "interactive": True,
+    }
+    if step.get("keywords"):
+        result["keywords"] = step["keywords"]
+    return result
+
+
+def _build_loop_result(step: dict, step_idx: int, context: dict) -> dict:
+    """为 loop 步骤构建 CONTINUE_LOOP 响应。
+
+    从 context 取出 source 数据展开为多个 loop items，
+    主 Agent 收到后需逐个执行并按 loop_complete 回传。
+    """
+    source = step.get("source", "previous_output")
+    items = context.get(source, [])
+
+    if not items:
+        # 没有数据源 → 返回空循环（主 Agent 可跳过）
+        return {
+            "status": STATUS_CONTINUE_LOOP,
+            "next": [],
+            "loop_count": 0,
+            "context": {"chain_step": step_idx, "step_type": STEP_TYPE_LOOP},
+        }
+
+    loop_items = []
+    for i, item in enumerate(items):
+        lo = {
+            "agent": step["agent"],
+            "goal": step["goal"],
+            "loop_context": item,
+            "loop_index": i,
+        }
+        if step.get("keywords"):
+            lo["keywords"] = step["keywords"]
+        loop_items.append(lo)
+
+    return {
+        "status": STATUS_CONTINUE_LOOP,
+        "next": loop_items,
+        "loop_count": len(loop_items),
+        "context": {"chain_step": step_idx, "step_type": STEP_TYPE_LOOP},
+    }
+
+
+def aggregate_parallel_results(branch_results: list[dict], join_strategy: str) -> dict:
+    """聚合并行分支的结果。
+
+    导出的公共函数，供主 Agent 在收集所有并行委托后调用。
+
+    参数:
+        branch_results: 每个元素为 {name, summary, findings, ...}
+        join_strategy: "separate" — 不交叉排序，保留各轴完整性
+                       "synthesize" — 对比合成
+
+    返回:
+        聚合后的结果 dict
+    """
+    if join_strategy == "separate":
+        return {
+            "status": "DONE",
+            "output_type": "separate_report",
+            "reports": {
+                r.get("name", f"branch_{i}"): {
+                    "content": r.get("summary", ""),
+                    "findings": r.get("findings", []),
+                }
+                for i, r in enumerate(branch_results)
+            },
+            "summary": "并行结果已按轴独立输出，未做交叉排序",
+        }
+    elif join_strategy == "synthesize":
+        return {
+            "status": "DONE",
+            "output_type": "synthesized_report",
+            "individual_reports": {
+                r.get("name", f"branch_{i}"): r.get("summary", "")
+                for i, r in enumerate(branch_results)
+            },
+            "comparison": {
+                "common_points": [],
+                "divergences": [],
+                "_warning": "synthesize 聚合策略为简化实现，仅保留各分支独立报告，未做自动对比合成。如需完整对比，请在主 Agent 层自行实现。",
+            },
+        }
+    else:
+        return {"status": "ERROR", "diagnosis": f"未知聚合策略: {join_strategy}"}
+
+
 def _validate_skills(chain_def: list, chain_step_skills: dict, chain_owner: str) -> list:
-    """验证所有 chain step 都有对应的 skills key。返回错误列表，空列表表示无错误。"""
+    """验证所有 serial chain step 都有对应的 skills key。返回错误列表，空列表表示无错误。
+
+    跳过 parallel / interactive / loop 类型步骤，它们不需要 skills key。
+    """
     errors = []
     for i, step in enumerate(chain_def):
+        step_type = _get_step_type(step)
+        if step_type != STEP_TYPE_SERIAL:
+            continue  # 非 serial 步骤无需 skills key
         key = f"{chain_owner}@{i}"
         if key not in chain_step_skills:
             errors.append(f"缺少 skills key: '{key}' (step {i}: {step['agent']} → {step['goal']})")
@@ -120,8 +277,22 @@ def _save_state(task_id: str, state: dict):
 
 
 def _build_step_result(step: dict, chain_owner: str, step_idx: int,
-                       chain_step_skills: dict) -> dict:
-    """为单个 step 构建 CONTINUE 响应。如果 step 有 batch: true，返回 CONTINUE_BATCH 数组。"""
+                       chain_step_skills: dict, context: dict | None = None) -> dict:
+    """为单个 step 构建响应。支持 serial / parallel / interactive / loop 四种类型。
+
+    如果 step 有 type 字段且不为 serial，委托给对应的专用构建函数。
+    如果 step 有 batch: true，返回 CONTINUE_BATCH 数组。
+    """
+    step_type = _get_step_type(step)
+
+    if step_type == STEP_TYPE_PARALLEL:
+        return _build_parallel_result(step, step_idx)
+    elif step_type == STEP_TYPE_INTERACTIVE:
+        return _build_interactive_result(step, step_idx)
+    elif step_type == STEP_TYPE_LOOP:
+        return _build_loop_result(step, step_idx, context or {})
+
+    # ── serial 原有逻辑 ──
     if step.get("batch"):
         # batch 模式：根据 batch 配置展开为多个子任务
         batch_count = step.get("batch_count", 3)  # 默认拆成 3 个
@@ -135,12 +306,16 @@ def _build_step_result(step: dict, chain_owner: str, step_idx: int,
             goals.append(goal)
 
         next_items = []
+        step_keywords = step.get("keywords", [])
         for i, goal in enumerate(goals):
-            next_items.append({
+            item = {
                 "agent": step["agent"],
                 "goal": goal,
                 "batch_index": i,
-            })
+            }
+            if step_keywords:
+                item["keywords"] = step_keywords
+            next_items.append(item)
 
         return {
             "status": "CONTINUE_BATCH",
@@ -155,19 +330,27 @@ def _build_step_result(step: dict, chain_owner: str, step_idx: int,
     else:
         key = f"{chain_owner}@{step_idx}"
         skills = chain_step_skills.get(key, [])
+        next_item = {
+            "agent": step["agent"],
+            "goal": step["goal"],
+            "skills": skills,
+        }
+        if step.get("keywords"):
+            next_item["keywords"] = step["keywords"]
         return {
             "status": "CONTINUE",
-            "next": {"agent": step["agent"], "goal": step["goal"], "skills": skills},
+            "next": next_item,
             "context": {"chain_step": step_idx, "step_goal": step["goal"]},
         }
 
 
-def start_chain(task_id: str, chain_def: list, chain_step_skills: dict, chain_owner: str):
+def start_chain(task_id: str, chain_def: list, chain_step_skills: dict, chain_owner: str,
+                report_only: bool = False):
     """
     start action：封装首次 advance 调用，自动构造 last_result={"status":"init"}。
-    等价于 advance(task_id, chain_def, chain_step_skills, {"status":"init"}, chain_owner)。
+    等价于 advance(task_id, chain_def, chain_step_skills, {"status":"init"}, chain_owner, report_only)。
     """
-    return advance(task_id, chain_def, chain_step_skills, {"status": "init"}, chain_owner)
+    return advance(task_id, chain_def, chain_step_skills, {"status": "init"}, chain_owner, report_only=report_only)
 
 
 def run_chain(task_id: str, chain_agent: str, last_result: dict):
@@ -192,17 +375,35 @@ def run_chain(task_id: str, chain_agent: str, last_result: dict):
         return {"status": "ERROR", "diagnosis": f"index.yaml 中未找到 agent: {chain_agent}"}
 
     chain_def = agent_config.get("chain")
-    if not chain_def:
-        return {"status": "ERROR", "diagnosis": f"agent '{chain_agent}' 未定义 chain"}
 
     chain_step_skills = agent_config.get("chain_step_skills", {})
+    report_only = False
+
+    # 如果内联 chain 不存在，尝试从 chain_ref 加载
+    if not chain_def:
+        chain_ref = agent_config.get("chain_ref")
+        if chain_ref:
+            _route_map_dir = os.path.join(_SCRIPT_DIR_CHAIN, "..", "route-map")
+            chain_file = os.path.join(_route_map_dir, "chains", f"{chain_ref}.yaml")
+            if os.path.exists(chain_file):
+                with open(chain_file, "r") as f:
+                    chain_data = yaml.safe_load(f)
+                chain_def = chain_data.get("steps", [])
+                chain_step_skills = chain_data.get("chain_step_skills", {})
+                report_only = chain_data.get("report_only", False)
+            else:
+                return {"status": "ERROR", "diagnosis": f"chain_ref 文件不存在: {chain_file}"}
+
+    if not chain_def:
+        return {"status": "ERROR", "diagnosis": f"agent '{chain_agent}' 未定义 chain 或 chain_ref"}
+
     chain_owner = chain_agent
 
-    return advance(task_id, chain_def, chain_step_skills, last_result, chain_owner)
+    return advance(task_id, chain_def, chain_step_skills, last_result, chain_owner, report_only=report_only)
 
 
 def advance(task_id: str, chain_def: list, chain_step_skills: dict,
-            last_result: dict, chain_owner: str = ""):
+            last_result: dict, chain_owner: str = "", report_only: bool = False):
     """
     last_result: 从上一步委托返回的结果 dict
       必有: agent, status
@@ -210,6 +411,7 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
     1) 首个调用: last_result={"status":"init"}
     2) batch 场景: last_result 可含 batch_index 或 batch_complete
     chain_owner: 链所属的 Agent（用于构建 skills key: {owner}@{idx}）
+    report_only: 链完成后返回 REPORT_ONLY 状态码而非 DONE
     """
 
     # ── 首次调用 ──
@@ -233,11 +435,12 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
         state.update({
             "current_step": 0, "spec_retry": 0, "quality_retry": 0,
             "concerns": [], "context": {}, "chain_owner": chain_owner,
+            "report_only": report_only,
         })
         _save_state(task_id, state)
 
         step = chain_def[0]
-        return _build_step_result(step, chain_owner, 0, chain_step_skills)
+        return _build_step_result(step, chain_owner, 0, chain_step_skills, state.get("context", {}))
 
     try:
         state = _load_state(task_id)
@@ -252,7 +455,6 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
     step_idx = state["current_step"]
     if step_idx >= len(chain_def):
         return {"status": "ERROR", "diagnosis": f"state.current_step ({step_idx}) >= chain_def 长度 ({len(chain_def)})，状态与链定义不匹配"}
-    step_goal = chain_def[step_idx]["goal"]
 
     # ── batch_complete — 批次全部完成，推进到下一步 ──
     if last_result.get("batch_complete"):
@@ -266,7 +468,7 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
         if state["current_step"] >= len(chain_def):
             _save_state(task_id, state)
             return {
-                "status": "DONE",
+                "status": "REPORT_ONLY" if state.get("report_only") else "DONE",
                 "final_output_path": state["context"].get("last_output", ""),
                 "concerns": state["concerns"],
                 "summary": {
@@ -278,7 +480,79 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
             }
         _save_state(task_id, state)
         step = chain_def[state["current_step"]]
-        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills)
+        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}))
+
+    # ── branches_complete — 并行分支全部完成，推进到下一步 ──
+    if last_result.get("branches_complete"):
+        branch_results = last_result.get("branch_results", [])
+        if branch_results:
+            state["context"]["branch_results"] = branch_results
+        _save_state(task_id, state)
+        state["current_step"] += 1
+        if state["current_step"] >= len(chain_def):
+            _save_state(task_id, state)
+            return {
+                "status": "REPORT_ONLY" if state.get("report_only") else "DONE",
+                "final_output_path": state["context"].get("last_output", ""),
+                "concerns": state["concerns"],
+                "summary": {
+                    "total_steps": len(chain_def),
+                    "spec_retry_count": state["spec_retry"],
+                    "quality_retry_count": state["quality_retry"],
+                    "concerns_count": len(state["concerns"]),
+                },
+            }
+        _save_state(task_id, state)
+        step = chain_def[state["current_step"]]
+        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}))
+
+    # ── loop_complete — 循环项全部完成，推进到下一步 ──
+    if last_result.get("loop_complete"):
+        loop_results = last_result.get("loop_results", [])
+        if loop_results:
+            state["context"]["loop_results"] = loop_results
+        _save_state(task_id, state)
+        state["current_step"] += 1
+        if state["current_step"] >= len(chain_def):
+            _save_state(task_id, state)
+            return {
+                "status": "REPORT_ONLY" if state.get("report_only") else "DONE",
+                "final_output_path": state["context"].get("last_output", ""),
+                "concerns": state["concerns"],
+                "summary": {
+                    "total_steps": len(chain_def),
+                    "spec_retry_count": state["spec_retry"],
+                    "quality_retry_count": state["quality_retry"],
+                    "concerns_count": len(state["concerns"]),
+                },
+            }
+        _save_state(task_id, state)
+        step = chain_def[state["current_step"]]
+        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}))
+
+    # ── branch_index — 单个并行分支完成，累加结果 ──
+    if last_result.get("branch_index") is not None:
+        branch_index = last_result["branch_index"]
+        if "branch_results" not in state["context"]:
+            state["context"]["branch_results"] = []
+        while len(state["context"]["branch_results"]) <= branch_index:
+            state["context"]["branch_results"].append(None)
+        state["context"]["branch_results"][branch_index] = {
+            "agent": agent,
+            "status": status,
+            "output_path": last_result.get("output_path", ""),
+            "message": last_result.get("message", ""),
+            "findings": last_result.get("findings", ""),
+            "summary": last_result.get("summary", ""),
+        }
+        _save_state(task_id, state)
+        return {
+            "status": "BRANCH_PROGRESS",
+            "branch_index": branch_index,
+            "branch_count": len(state["context"]["branch_results"]),
+            "context": state.get("context", {}),
+            "message": f"Branch {branch_index + 1} completed. Awaiting remaining or branches_complete.",
+        }
 
     # ── batch_index — 单个 batch 分片完成，累加结果 ──
     if last_result.get("batch_index") is not None:
@@ -305,6 +579,9 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
         }
 
     # ── 校验状态合法性 ──
+    step_goal = chain_def[step_idx].get("goal", "")
+    if not step_goal:
+        return {"status": "ERROR", "diagnosis": f"step[{step_idx}] 缺少 goal 字段（可能 parallel/interactive/loop 步骤未经过 completion handler）"}
     step_type = _infer_step_type(step_goal)
     valid = STEP_VALID_STATUSES.get(step_type, ["DONE", "BLOCKED"])
     if status not in valid:
@@ -342,8 +619,9 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
 
     # ── NEEDS_FIX — review 不通过 ──
     if status == "NEEDS_FIX":
-        # 判断是 spec fix 还是 quality fix
-        if "spec" in step_goal.lower():
+        # 判断是 spec fix 还是 quality fix（利用 _infer_step_type 兼容中文 goal）
+        step_type = _infer_step_type(step_goal)
+        if step_type == "spec-review":
             state["spec_retry"] += 1
             retry = state["spec_retry"]
             if retry >= MAX_RETRY:
@@ -371,7 +649,7 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
                     "target_step_idx": step_idx,
                 },
             }
-        elif "quality" in step_goal.lower():
+        elif step_type == "quality-review":
             state["quality_retry"] += 1
             retry = state["quality_retry"]
             if retry >= MAX_RETRY:
@@ -421,14 +699,14 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
             state["current_step"] = last_result["target_step_idx"]
             _save_state(task_id, state)
             step = chain_def[state["current_step"]]
-            return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills)
+            return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}))
 
         # 正常推进到下一步
         state["current_step"] += 1
         if state["current_step"] >= len(chain_def):
             _save_state(task_id, state)
             return {
-                "status": "DONE",
+                "status": "REPORT_ONLY" if state.get("report_only") else "DONE",
                 "final_output_path": state["context"].get("last_output", ""),
                 "concerns": state["concerns"],
                 "summary": {
@@ -441,7 +719,7 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
 
         _save_state(task_id, state)
         step = chain_def[state["current_step"]]
-        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills)
+        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}))
 
     return {"status": "ERROR", "diagnosis": f"未处理的状态: {status}"}
 
@@ -460,6 +738,8 @@ def main():
                         help="链所属 Agent（首次调用必填）")
     parser.add_argument("--chain_agent", default="",
                         help="从 index.yaml 读取 chain 的 Agent 名 (run action 必填)")
+    parser.add_argument("--report_only", action="store_true", default=False,
+                        help="链完成后返回 REPORT_ONLY 状态码而非 DONE")
     args = parser.parse_args()
 
     # 在 main 入口净化 task_id
@@ -487,7 +767,8 @@ def main():
         except json.JSONDecodeError as e:
             print(json.dumps({"status": "ERROR", "diagnosis": f"JSON 解析失败: {e}"}, ensure_ascii=False))
             sys.exit(1)
-        result = start_chain(args.task_id, chain_def, chain_step_skills, args.chain_owner)
+        result = start_chain(args.task_id, chain_def, chain_step_skills, args.chain_owner,
+                             report_only=args.report_only)
 
     elif args.action == "run":
         # run: --chain_agent 必填；可选 --last_result（默认 init）
@@ -519,7 +800,7 @@ def main():
             print(json.dumps({"status": "ERROR", "diagnosis": f"JSON 解析失败: {e}"}, ensure_ascii=False))
             sys.exit(1)
         result = advance(args.task_id, chain_def, chain_step_skills, last_result,
-                         chain_owner=args.chain_owner)
+                         chain_owner=args.chain_owner, report_only=args.report_only)
 
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

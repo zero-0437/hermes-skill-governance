@@ -1,0 +1,18 @@
+[project]
+name = "hermes-mgmt"
+version = "1.0.0"
+description = "Hermes Agent 统一治理工具"
+requires-python = ">=3.11"
+dependencies = [
+    "ruamel.yaml",
+    "jinja2",
+    "pyyaml",
+]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["hermes_mgmt*"]
