@@ -75,6 +75,7 @@ def load_route_map() -> dict:
             "priority": info.get("priority", 99),
             "condition": info.get("condition", ""),
             "chain": info.get("chain", []),
+            "chain_step_skills": info.get("chain_step_skills", {}),
         }
 
     _route_map_cache = route_map
@@ -419,6 +420,24 @@ def decide(
     }
 
 
+def _validate_chain(chain: list, route_map: dict):
+    """轻量级校验 chain 数据结构，不阻断执行，仅输出 warning。"""
+    if not chain:
+        return
+    agents = route_map.get("agents", {})
+    for i, step in enumerate(chain):
+        if not isinstance(step, dict):
+            print(f"[WARNING] chain step {i} 不是 dict 类型: {step}")
+            continue
+        if "agent" not in step:
+            print(f"[WARNING] chain step {i} 缺少 'agent' 字段: {step}")
+        if "goal" not in step:
+            print(f"[WARNING] chain step {i} 缺少 'goal' 字段: {step}")
+        step_agent = step.get("agent", "")
+        if step_agent and step_agent not in agents:
+            print(f"[WARNING] chain step {i} 的 agent '{step_agent}' 未在 route_map 的 agents 中定义")
+
+
 def route(user_input: str) -> dict:
     """
     主入口：路由用户输入到目标 Agent。
@@ -443,7 +462,9 @@ def route(user_input: str) -> dict:
                 for skill in rule.get("skills", []):
                     matched_skills.add(skill)
                 auto_skills, _manual_skills = _lookup_skills(agent_name)
-                chain = route_map.get("agents", {}).get(agent_name, {}).get("chain", [])
+                agent_data = route_map.get("agents", {}).get(agent_name, {})
+                chain = agent_data.get("chain", [])
+                chain_step_skills = agent_data.get("chain_step_skills", {})
                 return {
                     "agent": agent_name,
                     "confidence": 1.0,
@@ -456,6 +477,7 @@ def route(user_input: str) -> dict:
                     "auto_skills": auto_skills,
                     "manual_skills": sorted(matched_skills),
                     "chain": chain or None,
+                    "chain_step_skills": chain_step_skills,
                 }
 
     # ── 评估 + 决策 ────────────────────────────────────────────
@@ -496,8 +518,10 @@ def route(user_input: str) -> dict:
 
         # ── 链条提取：从 index.yaml 的 Agent chain 字段 ──
         chain = route_map.get("agents", {}).get(target, {}).get("chain", [])
-        if chain:
-            result["chain"] = chain
+        chain_step_skills = route_map.get("agents", {}).get(target, {}).get("chain_step_skills", {})
+        _validate_chain(chain, route_map)
+        result["chain"] = chain
+        result["chain_step_skills"] = chain_step_skills
 
     return result
 
