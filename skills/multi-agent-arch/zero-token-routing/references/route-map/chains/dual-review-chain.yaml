@@ -1,0 +1,15 @@
+chain_name: dual-review-chain
+chain_keywords: [双评审, d-review, 合规检查]
+description: "双评审 — spec合规评审→代码质量评审→仅出报告"
+report_only: true
+owner: dual-review
+steps:
+  - agent: error-analyst
+    goal: spec 合规评审
+    keywords: [spec-review, verify, compliance]
+  - agent: programmer
+    goal: 代码质量评审
+    keywords: [quality-review, code-review, audit]
+chain_step_skills:
+  dual-review@0: [requesting-code-review]
+  dual-review@1: [requesting-code-review]

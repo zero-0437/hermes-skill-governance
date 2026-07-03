@@ -1,0 +1,147 @@
+# route-map/routes/error-analyst.yaml
+# 错误诊断 + 代码审查 — 只读分析，不执行修改
+agent: error-analyst
+priority: 3
+condition: 故障诊断/安全审查/spec 合规评审
+rules:
+  # ── 错误/诊断/根因 → postmortem-analyst + network-debugging ──
+  - type: phrase
+    pattern: 错误
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: phrase
+    pattern: 故障
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+    fuzzy: true
+  - type: phrase
+    pattern: 异常
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: phrase
+    pattern: 崩溃
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: phrase
+    pattern: 内存泄漏
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+    fuzzy: true
+  - type: phrase
+    pattern: 死锁
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: phrase
+    pattern: 诊断
+    weight: 0.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: phrase
+    pattern: 诊断错误
+    weight: 1.0
+    skills: [postmortem-analyst, network-debugging]
+    fuzzy: true
+  - type: phrase
+    pattern: 根因
+    weight: 0.9
+    skills: [postmortem-analyst, network-debugging]
+  - type: regex
+    pattern: \b(panic|segfault|OOM|diagnose|debug|error|exception|crash)\b
+    weight: 0.7
+    skills: [postmortem-analyst, network-debugging]
+  - type: regex
+    pattern: \b(postmortem)\b
+    weight: 0.9
+    skills: [postmortem-analyst, network-debugging]
+
+  # ── 安全/审计/审查 → engineering-security-engineer ────
+  - type: phrase
+    pattern: 审查
+    weight: 0.8
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: phrase
+    pattern: 审核
+    weight: 0.8
+    skills: [engineering-security-engineer]
+  - type: phrase
+    pattern: 评审
+    weight: 0.8
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: phrase
+    pattern: 审计
+    weight: 0.8
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: phrase
+    pattern: 安全
+    weight: 0.8
+    skills: [engineering-security-engineer]
+  - type: phrase
+    pattern: 漏洞
+    weight: 0.8
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: phrase
+    pattern: 风险
+    weight: 0.8
+    skills: [engineering-security-engineer]
+  - type: phrase
+    pattern: 审查代码
+    weight: 1.0
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: phrase
+    pattern: 代码审查
+    weight: 1.0
+    skills: [engineering-security-engineer]
+    fuzzy: true
+  - type: regex
+    pattern: \b(audit|review|vulnerability|risk)\b
+    weight: 0.7
+    skills: [engineering-security-engineer]
+
+  # ── 复盘/事故分析 → postmortem-analyst ──────────────────
+  - type: phrase
+    pattern: 复盘
+    weight: 0.9
+    skills: [postmortem-analyst]
+    fuzzy: true
+  - type: phrase
+    pattern: 事故分析
+    weight: 0.9
+    skills: [postmortem-analyst]
+    fuzzy: true
+
+  # ── 误匹配防护——负权重，无技能 ────────────────────────
+  # ── 双评审独占冻结：防止"评审"/"审查"模糊截胡 dual-review ──
+  - type: phrase
+    pattern: 双评审
+    weight: -1.0
+    skills: []
+  - type: phrase
+    pattern: 修复
+    weight: -0.3
+    skills: []
+  - type: phrase
+    pattern: 修改
+    weight: -0.3
+    skills: []
+  - type: phrase
+    pattern: 写
+    weight: -0.3
+    skills: []
+  - type: phrase
+    pattern: 实现
+    weight: -0.3
+    skills: []
+
+  # ── 编译/环境错误（2026-06-30 新增） ────────────────────────
+  - type: regex
+    pattern: (编译错误|构建失败|build fail|import.*fail|modulenotfound|permission denied)
+    weight: 1.8
+    skills: [postmortem-analyst, network-debugging]
+  - type: regex
+    pattern: (pip install|uv.*install|安装.*失败|依赖.*问题)
+    weight: 0.9
+    skills: [postmortem-analyst, network-debugging]

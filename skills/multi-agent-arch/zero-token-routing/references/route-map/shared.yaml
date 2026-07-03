@@ -1,0 +1,3 @@
+# route-map/shared.yaml — 跨 Agent 通用规则（预留）
+# 当前为空，未来可用于：所有 Agent 都匹配的通用关键词
+shared_rules: []

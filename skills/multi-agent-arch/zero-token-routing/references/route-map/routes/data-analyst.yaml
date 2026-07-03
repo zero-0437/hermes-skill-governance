@@ -1,0 +1,99 @@
+# route-map/routes/data-analyst.yaml
+# 数据搜索与分析 — 多渠道信息检索，先判再搜
+agent: data-analyst
+priority: 4
+condition: 数据分析/搜索查询/研究类任务
+rules:
+  # ── 搜索/查询/检索 ────────────────────────────────────
+  - type: phrase
+    pattern: 搜索
+    weight: 0.8
+    fuzzy: true
+    skills:
+      - arxiv
+      - blogwatcher
+      - github-search
+  - type: phrase
+    pattern: 查询
+    weight: 0.8
+    fuzzy: true
+    skills:
+      - arxiv
+      - blogwatcher
+      - github-search
+  - type: phrase
+    pattern: 调查
+    weight: 0.7
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: 检索
+    weight: 0.8
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: 查找
+    weight: 0.7
+    fuzzy: true
+    skills: []
+  - type: regex
+    pattern: \b(search|find|research|analyze|investigate|report|arxiv)\b
+    weight: 0.8
+    skills: []
+
+  # ── 研究/论文/资料 ────────────────────────────────────
+  - type: phrase
+    pattern: 论文
+    weight: 0.7
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: 新闻
+    weight: 0.7
+    skills: []
+  - type: phrase
+    pattern: 研究
+    weight: 0.5
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: 资料
+    weight: 0.6
+    fuzzy: true
+    skills: []
+
+  # ── 趋势/报告/对比/统计 ───────────────────────────────
+  - type: phrase
+    pattern: 趋势
+    weight: 0.6
+    skills: []
+  - type: phrase
+    pattern: 报告
+    weight: 0.6
+    skills: []
+  - type: phrase
+    pattern: 对比
+    weight: 0.6
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: 统计数据
+    weight: 0.8
+    fuzzy: true
+    skills: []
+
+  # ── 实用查询短语（2026-07-02 新增） ─────────────────────────────
+  - type: phrase
+    pattern: 查一下
+    weight: 0.6
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 搜一下
+    weight: 0.6
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 分析
+    weight: 0.6
+    skills: []

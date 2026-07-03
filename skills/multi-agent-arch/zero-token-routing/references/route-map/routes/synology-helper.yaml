@@ -1,0 +1,73 @@
+# route-map/routes/synology-helper.yaml
+# 群晖 NAS 运维执行者 — SSH/Docker 全栈操作
+agent: synology-helper
+priority: 8
+condition: NAS 操作/备份/系统维护
+rules:
+  # ── NAS 核心操作 ───────────────────────────────────────
+  - type: phrase
+    pattern: 群晖
+    weight: 1.0
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 备份系统
+    weight: 1.0
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 存储
+    weight: 1.0
+    skills: []
+  - type: regex
+    pattern: \b(NAS|synology|diskstation|DSM|RAID)\b
+    weight: 1.0
+    skills: []
+  - type: phrase
+    pattern: 完整备份
+    weight: 0.9
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 系统维护
+    weight: 0.9
+    skills: []
+    fuzzy: true
+  - type: regex
+    pattern: ssh.*172|172\..*\..*\..*|hermes.*backup
+    weight: 0.9
+    skills: []
+  - type: phrase
+    pattern: 轻量备份
+    weight: 0.9
+    skills: []
+  - type: regex
+    pattern: \b(QuickConnect)\b
+    weight: 0.7
+    skills: []
+
+  # ── 磁盘/存储管理 ──────────────────────────────────────
+  - type: phrase
+    pattern: 磁盘
+    weight: 0.7
+    skills: []
+  - type: phrase
+    pattern: 硬盘
+    weight: 0.7
+    skills: []
+  - type: phrase
+    pattern: 卷
+    weight: 0.7
+    skills: []
+  - type: phrase
+    pattern: 共享文件夹
+    weight: 0.7
+    skills: []
+    fuzzy: true
+
+  # ── 系统备份（2026-07-02 新增） ─────────────────────────────────
+  - type: phrase
+    pattern: 系统备份
+    weight: 1.0
+    skills: []
+    fuzzy: true

@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""hermes-route-add — 给已有 Agent 追加路由规则的 CLI 入口脚本
+
+Usage:
+    ./hermes-route-add --agent <name> --type <keyword|phrase|regex> --pattern <pattern> --weight <float> [--skills <skills>] [--neg-weight]
+
+事务保护：
+    所有文件修改均在 FileTransaction 保护下进行。
+    追加规则 → 调用 validate-route-map.py → 通过则 commit，失败则 rollback。
+
+产出：
+    - route-map/routes/{agent}.yaml（追加一条规则）
+"""
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import List, Tuple
+
+# ── sys.path hack for agent-mgmt modules ──
+# 目录名 "agent-mgmt" 含连字符，无法作为标准 Python 包导入，
+# 因此通过 sys.path 添加目录路径来导入模块。
+_mgmt_dir = Path(__file__).resolve().parent / "agent-mgmt"
+if str(_mgmt_dir) not in sys.path:
+    sys.path.insert(0, str(_mgmt_dir))
+
+from _yaml_ops import append_to_list
+from _validation import check_agent_exist, get_all_skill_names
+from _transaction import FileTransaction
+
+# ═══════════════════════════════════════════
+# 路径常量
+# ═══════════════════════════════════════════
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ROUTES_DIR = PROJECT_ROOT / "route-map" / "routes"
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+
+VALID_TYPES = {"keyword", "phrase", "regex"}
+WEIGHT_MIN = -2.0
+WEIGHT_MAX = 2.0
+
+
+# ═══════════════════════════════════════════
+# CLI 参数解析
+# ═══════════════════════════════════════════
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="给已有 Agent 追加路由规则",
+    )
+    parser.add_argument(
+        "--agent", required=True,
+        help="Agent 名（必填）",
+    )
+    parser.add_argument(
+        "--type", required=True, choices=sorted(VALID_TYPES),
+        help="匹配类型（keyword/phrase/regex）",
+    )
+    parser.add_argument(
+        "--pattern", required=True,
+        help="匹配模式",
+    )
+    parser.add_argument(
+        "--weight", required=True, type=float,
+        help=f"权重（浮点数，自动钳位到 [{WEIGHT_MIN}, {WEIGHT_MAX}]）",
+    )
+    parser.add_argument(
+        "--skills", default="",
+        help="关联的 L3 skills，逗号分隔（可选）",
+    )
+    parser.add_argument(
+        "--neg-weight", action="store_true",
+        help="将 weight 转负值（weight = -abs(weight)）",
+    )
+    args = parser.parse_args()
+
+    # 校验 agent 名称格式
+    if not re.match(r"^[a-z0-9_-]+$", args.agent):
+        print(
+            f"错误: agent 名称「{args.agent}」不合法 — "
+            "仅允许小写字母、数字、连字符和下划线（^[a-z0-9_-]+$）",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    return args
+
+
+# ═══════════════════════════════════════════
+# 辅助函数
+# ═══════════════════════════════════════════
+
+def clamp_weight(w: float) -> float:
+    """钳位 weight 到 [WEIGHT_MIN, WEIGHT_MAX]。"""
+    return max(WEIGHT_MIN, min(WEIGHT_MAX, w))
+
+
+def run_script(script_name: str) -> Tuple[bool, str]:
+    """运行项目脚本，返回 (成功?, 输出)。
+
+    Args:
+        script_name: 脚本文件名（如 ``validate-route-map.py``）。
+
+    Returns:
+        (True, output)  — 脚本返回码为 0 或 1（OK/WARN）。
+        (False, output) — 脚本返回码为 2（ERR）或执行异常。
+    """
+    script_path = SCRIPTS_DIR / script_name
+    if not script_path.is_file():
+        return False, f"脚本不存在: {script_path}"
+
+    try:
+        result = subprocess.run(
+            [sys.executable, str(script_path)],
+            capture_output=True, text=True, timeout=60,
+        )
+        output = result.stdout + result.stderr
+        # 0=OK, 1=WARN（可接受）, 2=ERR（阻塞）
+        if result.returncode in (0, 1):
+            return True, output
+        return False, output
+    except subprocess.TimeoutExpired:
+        return False, f"{script_name} 执行超时（60s）"
+    except Exception as e:
+        return False, f"{script_name} 执行异常: {e}"
+
+
+# ═══════════════════════════════════════════
+# 主流程
+# ═══════════════════════════════════════════
+
+def main() -> None:
+    args = parse_args()
+    agent = args.agent
+    rule_type = args.type
+    pattern = args.pattern
+    weight = args.weight
+    skills_str = args.skills
+    neg_weight = args.neg_weight
+
+    # 解析 skills
+    skills: List[str] = (
+        [s.strip() for s in skills_str.split(",") if s.strip()]
+        if skills_str else []
+    )
+
+    # ── 文件路径 ──
+    route_file = ROUTES_DIR / f"{agent}.yaml"
+    route_rel = f"route-map/routes/{agent}.yaml"
+
+    # ═══════════════════════════════════════════
+    # 步骤 1: 校验
+    # ═══════════════════════════════════════════
+    print(f"⚙  正在为 Agent「{agent}」追加路由规则...")
+    print(f"   类型: {rule_type}  |  模式: {pattern}")
+    print(f"   权重: {weight}", end="")
+    if neg_weight:
+        print("（将取负值）", end="")
+    print()
+    print(f"   技能: {skills if skills else '（无）'}")
+    print()
+
+    # ── 1a) check_agent_exist(agent) — agent 必须已存在 ──
+    exists, msg = check_agent_exist(agent)
+    if not exists:
+        print(
+            f"✗ 校验失败: agent「{agent}」不存在，无法追加规则",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    print(f"✓ agent 存在性校验: {msg}")
+
+    # ── 1b) weight auto-clamp 到 [-2.0, 2.0] ──
+    raw_weight = weight
+    weight = clamp_weight(weight)
+    if weight != raw_weight:
+        print(
+            f"  ~ weight 已钳位: {raw_weight} → {weight} "
+            f"（允许范围 [{WEIGHT_MIN}, {WEIGHT_MAX}]）",
+        )
+
+    # ── 1c) regex type 做 re.compile 语法检查 ──
+    if rule_type == "regex":
+        try:
+            re.compile(pattern)
+        except re.error as e:
+            print(f"✗ 校验失败: regex 语法错误: {e}", file=sys.stderr)
+            sys.exit(2)
+        print("✓ regex 语法检查通过")
+
+    # ── 1d) skills 引用的 skill 在 skill-map.yaml 中存在 ──
+    if skills:
+        all_skill_names = get_all_skill_names()
+        missing_skills = [s for s in skills if s not in all_skill_names]
+        if missing_skills:
+            print(
+                f"✗ 校验失败: skill(s) 不存在于 skill-map.yaml: "
+                f"{', '.join(missing_skills)}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        print(
+            f"✓ 技能存在性校验: {len(skills)} 个 skill "
+            f"均在 skill-map.yaml 中存在",
+        )
+
+    # ═══════════════════════════════════════════
+    # 步骤 3: 若 --neg-weight → weight = -abs(weight)
+    #（在追加前应用，确保写入正确值）
+    # ═══════════════════════════════════════════
+    if neg_weight:
+        weight = -abs(weight)
+        print(f"  ~ --neg-weight 已应用: {raw_weight} → {weight}")
+
+    # ── 构造 rule dict ──
+    rule = {
+        "type": rule_type,
+        "pattern": pattern,
+        "weight": weight,
+    }
+    if skills:
+        rule["skills"] = skills
+    else:
+        rule["skills"] = []
+
+    # ═══════════════════════════════════════════
+    # 事务保护
+    # ═══════════════════════════════════════════
+    tx = FileTransaction()
+
+    try:
+        # ── 备份 route 文件 ──
+        if not route_file.is_file():
+            print(
+                f"✗ route 文件不存在: {route_rel}",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
+        tx.backup(str(route_file))
+        print(f"  ↻ 已备份: {route_rel}")
+
+        # ═══════════════════════════════════════════
+        # 步骤 2: 追加一条 rule 到 rules[] 列表
+        # ═══════════════════════════════════════════
+        append_to_list(str(route_file), "rules", rule)
+        print(f"✓ 已追加规则到 {route_rel}")
+
+        # ═══════════════════════════════════════════
+        # 步骤 4: 调用 validate-route-map.py
+        # ═══════════════════════════════════════════
+        print("  → 正在验证 route-map 一致性...")
+        ok, output = run_script("validate-route-map.py")
+        if ok:
+            # 解析 JSON 输出
+            try:
+                data = json.loads(output)
+                status = data.get("status", "?")
+                n_err = len(data.get("errors", []))
+                n_warn = len(data.get("warnings", []))
+                print(f"    status={status}, errors={n_err}, warnings={n_warn}")
+            except Exception:
+                print(f"    {output.strip()[:200]}")
+            print("✓ validate-route-map.py 通过")
+        else:
+            print("  ✗ validate-route-map.py 失败:", file=sys.stderr)
+            print(f"    {output.strip()[:500]}", file=sys.stderr)
+            raise RuntimeError(
+                "validate-route-map.py 验证失败，已触发事务回滚",
+            )
+
+        # ═══════════════════════════════════════════
+        # 步骤 5: 校验通过 → tx.commit()
+        # ═══════════════════════════════════════════
+        tx.commit()
+
+        # ═══════════════════════════════════════════
+        # 步骤 6: 输出报告
+        # ═══════════════════════════════════════════
+        print()
+        print("=" * 62)
+        print(f"  ✓ 规则已成功追加到 Agent「{agent}」")
+        print("=" * 62)
+        print()
+        print("  规则摘要：")
+        print(f"    • 文件:   {route_rel}")
+        print(f"    • 类型:   {rule_type}")
+        print(f"    • 模式:   {pattern}")
+        print(f"    • 权重:   {weight:+.3f}")
+        if skills:
+            print(f"    • 技能:   {', '.join(skills)}")
+        else:
+            print("    • 技能:   （无）")
+        print()
+
+    except Exception as e:
+        tx.rollback()
+        print(f"\n✗ 操作失败，已事务回滚: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
