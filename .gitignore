@@ -3,10 +3,3 @@ __pycache__/
 .venv/
 .env
 *.swp
-
-# Python cache
-__pycache__/
-*.pyc
-*.pyo
-.venv/
-venv/

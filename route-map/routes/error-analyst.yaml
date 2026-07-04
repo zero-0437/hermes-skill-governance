@@ -36,10 +36,6 @@ rules:
     weight: 0.8
     skills: [diagnosing-bugs]
   - type: phrase
-    pattern: 诊断
-    weight: 0.8
-    skills: [postmortem-analyst, network-debugging]
-  - type: phrase
     pattern: 诊断错误
     weight: 1.0
     skills: [diagnosing-bugs]
