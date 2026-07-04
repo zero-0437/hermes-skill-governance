@@ -1,0 +1,310 @@
+#!/usr/bin/env -S uv run python
+"""
+scripts/hermes-agent-add — 在 Hermes 运行环境中注册新 Agent。
+
+为 Agent 生成 4 份制品（route file、index entry、skill-map entry、profile config），
+更新 SOUL.md 绑定表，并执行验证和缓存刷新。
+
+Usage:
+    ./scripts/hermes-agent-add <agent_name> \
+        --description "Agent 描述" \
+        --condition "触发条件" \
+        [--priority 50] \
+        [--model deepseek-v4-flash] \
+        [--toolsets terminal,file] \
+        [--skills L3-skill1,L3-skill2]
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+_THIS_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _THIS_DIR.parent
+
+INDEX_FILE = _PROJECT_ROOT / "route-map" / "index.yaml"
+SKILL_MAP_FILE = _PROJECT_ROOT / "skill-map.yaml"
+SOUL_MD_FILE = _PROJECT_ROOT / "SOUL.md"
+PROFILES_DIR = _PROJECT_ROOT / "profiles"
+ROUTES_DIR = _PROJECT_ROOT / "route-map" / "routes"
+
+_MGMT_DIR = _THIS_DIR / "agent-mgmt"
+if str(_MGMT_DIR) not in sys.path:
+    sys.path.insert(0, str(_MGMT_DIR))
+
+import ruamel.yaml
+
+from _binding_table import add_binding_row
+from _transaction import FileTransaction
+from _validation import check_agent_exist, check_file_exists
+from _yaml_ops import insert_into_dict, read_yaml
+from _templates import (
+    render_agent_config,
+    render_agent_route,
+)
+
+_DEFAULT_PRIORITY = 99
+_DEFAULT_MODEL = "deepseek-v4-flash"
+_DEFAULT_TOOLSETS = ["terminal", "file"]
+_SOUL_MD_BINDING_MARKER = "## Agent→Skill 绑定表"
+
+_PROFILE_SOUL_TEMPLATE = """# {agent} Agent 人格设计
+
+> 由 hermes-agent-add 自动生成，请编辑此文件完成 Agent 人格定义。
+
+## 身份与角色
+
+{description}
+
+## 核心职责
+
+（请在此描述 Agent 的核心职责和行为准则）
+
+## 行为约束
+
+（请在此列出 Agent 的行为约束和边界）
+
+## 与其他 Agent 的关系
+
+（请在此描述与其他 Agent 的协作关系）
+
+---
+
+*生成时间: {timestamp}*
+"""
+
+
+def reorder_index_agents() -> None:
+    """读取 index.yaml，按 priority 重新排序 agents dict。"""
+    yaml = ruamel.yaml.YAML(typ="rt")
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    with open(INDEX_FILE, "r", encoding="utf-8") as f:
+        data = yaml.load(f)
+    agents = data.get("agents", {})
+    if not isinstance(agents, dict) or len(agents) <= 1:
+        return
+    sorted_keys = sorted(agents.keys(), key=lambda k: agents[k].get("priority", 99))
+    for key in sorted_keys:
+        agents.move_to_end(key, last=True)
+    with open(INDEX_FILE, "w", encoding="utf-8") as f:
+        yaml.dump(data, f)
+
+
+def _find_binding_table_end_line(lines: List[str]) -> int:
+    in_table = False
+    last_data_idx = -1
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if _SOUL_MD_BINDING_MARKER in stripped:
+            in_table = True
+            continue
+        if not in_table:
+            continue
+        if stripped.startswith("|---"):
+            continue
+        if stripped.startswith("| ") and "---" not in stripped:
+            last_data_idx = i
+        elif not stripped:
+            break
+    return last_data_idx
+
+
+def _append_binding_row_to_soul(soul_path: Path, row: str) -> None:
+    if not soul_path.is_file():
+        raise FileNotFoundError(f"SOUL.md 不存在: {soul_path}")
+    lines = soul_path.read_text(encoding="utf-8").split("\n")
+    insert_idx = _find_binding_table_end_line(lines)
+    if insert_idx < 0:
+        lines.append("")
+        lines.append(_SOUL_MD_BINDING_MARKER)
+        lines.append("")
+        lines.append("| Agent | L2 auto（自动加载） | L3 manual（context 显式指定） | condition（触发条件） |")
+        lines.append("|-------|-------------------|---------------------------|----------------------|")
+        lines.append(row.rstrip("\n"))
+    else:
+        lines.insert(insert_idx + 1, row.rstrip("\n"))
+    soul_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _run_subprocess(script_name: str, label: str) -> None:
+    script_path = _THIS_DIR / script_name
+    if not script_path.is_file():
+        raise FileNotFoundError(f"脚本不存在: {script_path}")
+    result = subprocess.run(
+        [sys.executable, str(script_path)],
+        capture_output=True, text=True, timeout=60,
+        cwd=str(_PROJECT_ROOT),
+    )
+    if result.returncode not in (0, 1):
+        stderr = result.stderr.strip() or result.stdout.strip() or "(无输出)"
+        raise RuntimeError(f"{label} 失败（退出码 {result.returncode}）:\n{stderr}")
+    status = "OK" if result.returncode == 0 else "WARN"
+    print(f"  ✓ {label} {status}")
+
+
+def register_agent(args: argparse.Namespace) -> int:
+    name = args.name
+    priority = args.priority
+    condition = args.condition
+    description = args.description
+    model = args.model
+    toolsets = args.toolsets
+    skills_arg = args.skills
+
+    if not check_file_exists(str(INDEX_FILE))[0]:
+        print(f"错误: index.yaml 不存在: {INDEX_FILE}", file=sys.stderr)
+        return 1
+
+    route_file = ROUTES_DIR / f"{name}.yaml"
+    profile_dir = PROFILES_DIR / name
+    profile_config = profile_dir / "config.yaml"
+    profile_soul = profile_dir / "SOUL.md"
+
+    exists, msg = check_agent_exist(name)
+    if exists:
+        print(f"错误: {msg}", file=sys.stderr)
+        return 1
+    print(f"  ✓ 名称可用: {name}")
+
+    tx = FileTransaction()
+    files_created: List[Path] = []
+
+    try:
+        route_content = render_agent_route(
+            agent=name, description=description,
+            priority=priority, condition=condition,
+        )
+        if route_file.exists():
+            tx.backup(str(route_file))
+        route_file.write_text(route_content, encoding="utf-8")
+        files_created.append(route_file)
+        print(f"  ✓ 创建: {route_file.relative_to(_PROJECT_ROOT)}")
+
+        agent_entry: Dict[str, Any] = {
+            "file": f"routes/{name}.yaml",
+            "description": description,
+            "priority": priority,
+            "condition": condition,
+        }
+        tx.backup(str(INDEX_FILE))
+        insert_into_dict(str(INDEX_FILE), ["agents", name], agent_entry)
+        reorder_index_agents()
+        print(f"  ✓ 更新: {INDEX_FILE.relative_to(_PROJECT_ROOT)}")
+
+        skill_section: Dict[str, Any] = {"description": description, "categories": {}}
+        if skills_arg:
+            cat_skills = []
+            for sk_name in skills_arg:
+                cat_skills.append({"name": sk_name, "layer": "2 / load: auto"})
+            if cat_skills:
+                skill_section["categories"]["user-defined"] = cat_skills
+        tx.backup(str(SKILL_MAP_FILE))
+        insert_into_dict(str(SKILL_MAP_FILE), ["agents", name], skill_section)
+        print(f"  ✓ 更新: {SKILL_MAP_FILE.relative_to(_PROJECT_ROOT)}")
+
+        config_content = render_agent_config(
+            agent=name, description=description,
+            model=model, toolsets=toolsets,
+        )
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        profile_config.write_text(config_content, encoding="utf-8")
+        files_created.append(profile_config)
+        print(f"  ✓ 创建: {profile_config.relative_to(_PROJECT_ROOT)}")
+
+        tx.backup(str(SOUL_MD_FILE))
+        l3_skills = list(skills_arg) if skills_arg else []
+        binding_row = add_binding_row(
+            agent_name=name, l2_skills=[], l3_skills=l3_skills, condition=condition,
+        )
+        _append_binding_row_to_soul(SOUL_MD_FILE, binding_row)
+        print(f"  ✓ 更新: {SOUL_MD_FILE.relative_to(_PROJECT_ROOT)}")
+
+        soul_content = _PROFILE_SOUL_TEMPLATE.format(
+            agent=name, description=description,
+            timestamp=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+        profile_soul.write_text(soul_content, encoding="utf-8")
+        files_created.append(profile_soul)
+        print(f"  ✓ 创建: {profile_soul.relative_to(_PROJECT_ROOT)}")
+
+        _run_subprocess("rebuild-cache.py", "rebuild-cache.py")
+        _run_subprocess("validate-route-map.py", "validate-route-map.py")
+        _run_subprocess("validate-skill-map.py", "validate-skill-map.py")
+
+        tx.commit()
+        print(f"\n  ✓ 事务已提交 — Agent「{name}」注册成功！\n")
+
+        print("已创建/更新的文件：")
+        for fp in files_created:
+            print(f"    {fp.relative_to(_PROJECT_ROOT)}")
+        print(f"    {INDEX_FILE.relative_to(_PROJECT_ROOT)}")
+        print(f"    {SKILL_MAP_FILE.relative_to(_PROJECT_ROOT)}")
+        print(f"    {SOUL_MD_FILE.relative_to(_PROJECT_ROOT)}")
+        print(f"\n→ 请编辑 {profile_soul.relative_to(_PROJECT_ROOT)} 完成 Agent 人格设计")
+        return 0
+
+    except Exception as exc:
+        print(f"\n✗ 错误: {exc}", file=sys.stderr)
+        print("正在回滚事务...", file=sys.stderr)
+        try:
+            tx.rollback()
+            print("  ✓ 回滚完成", file=sys.stderr)
+        except Exception as rb_exc:
+            print(f"  ✗ 回滚失败: {rb_exc}", file=sys.stderr)
+        return 1
+
+
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Hermes Agent 注册工具 — 注册新 Agent 并生成所有制品",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "示例:\n"
+            "  ./scripts/hermes-agent-add my-agent \\\n"
+            "      --description \"我的新 Agent\" \\\n"
+            "      --condition \"触发条件描述\" \\\n"
+            "      --priority 50 \\\n"
+            "      --skills skill1,skill2\n"
+        ),
+    )
+    parser.add_argument("name", type=str, help="Agent 名称（如 my-agent）")
+    parser.add_argument("--priority", type=int, default=_DEFAULT_PRIORITY,
+                        help=f"路由优先级（默认 {_DEFAULT_PRIORITY}，数值越小优先级越高）")
+    parser.add_argument("--condition", type=str, required=True, help="触发条件描述（必填）")
+    parser.add_argument("--description", type=str, required=True, help="Agent 描述（必填）")
+    parser.add_argument("--model", type=str, default=_DEFAULT_MODEL,
+                        help=f"模型名称（默认 {_DEFAULT_MODEL}）")
+    parser.add_argument("--toolsets", type=str, default=",".join(_DEFAULT_TOOLSETS),
+                        help=f"工具集列表，逗号分隔（默认 {','.join(_DEFAULT_TOOLSETS)}）")
+    parser.add_argument("--skills", type=str, default=None,
+                        help="L3 技能名称列表，逗号分隔（可选）")
+
+    args = parser.parse_args(argv)
+
+    # 校验 agent 名称格式
+    if not re.match(r"^[a-z0-9_-]+$", args.name):
+        print(
+            f"错误: agent 名称「{args.name}」不合法 — "
+            "仅允许小写字母、数字、连字符和下划线（^[a-z0-9_-]+$）",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    args.toolsets = [t.strip() for t in args.toolsets.split(",") if t.strip()]
+    args.skills = [s.strip() for s in args.skills.split(",") if s.strip()] if args.skills else None
+    return args
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    args = parse_args(argv)
+    return register_agent(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

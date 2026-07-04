@@ -1,0 +1,21 @@
+# profiles/{{ agent }}/config.yaml
+# {{ description }}
+#
+# 继承主 config.yaml，仅覆写与本 Agent 相关的字段。
+
+model:
+  provider: {{ model_provider | default("deepseek") }}
+  default: {{ model }}
+providers: {}
+fallback_providers: {{ fallback_providers | default([]) }}
+toolsets: {{ toolsets | default(["delegate_task", "terminal", "session_search"]) }}
+agent:
+  max_turns: {{ max_turns | default(60) }}
+  gateway_timeout: {{ gateway_timeout | default(1800) }}
+  task_completion_guidance: true
+  parallel_tool_call_guidance: true
+  environment_probe: true
+  coding_context: auto
+terminal:
+  cwd: .
+  timeout: {{ terminal_timeout | default(120) }}

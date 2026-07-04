@@ -1,0 +1,12 @@
+# route-map/routes/{{ agent }}.yaml
+# {{ description }}
+agent: {{ agent }}
+priority: {{ priority }}
+condition: "{{ condition }}"
+rules:
+  # 请在此处为 {{ agent }} Agent 添加路由规则
+  # 规则格式：
+  # - type: phrase         # phrase / keyword / regex
+  #   pattern: "关键词"
+  #   weight: 0.8
+  #   skills: []           # 场景关联的 L3 skills

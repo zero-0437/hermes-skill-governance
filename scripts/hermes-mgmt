@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# hermes-mgmt — Hermes Agent 统一治理 CLI
+# Wrapper that sets PYTHONPATH and runs the package
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PKG_DIR="$SCRIPT_DIR/hermes_mgmt"
+
+if [ ! -d "$PKG_DIR" ]; then
+    echo "错误: 找不到 hermes_mgmt 包目录 ($PKG_DIR)" >&2
+    exit 1
+fi
+
+# Use uv if available, else system python
+if command -v uv &>/dev/null; then
+    # Temporarily unset VIRTUAL_ENV to avoid interference
+    VIRTUAL_ENV="" exec uv run --directory "$PKG_DIR" python -m hermes_mgmt "$@"
+else
+    PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH" exec python3 -m hermes_mgmt "$@"
+fi

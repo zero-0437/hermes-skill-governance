@@ -62,6 +62,7 @@ rules:
     pattern: \b(new project|new feature|implement|create|build|make)\b
     weight: 0.9
     skills: [domain-modeling, spec-authoring]
+    chain_ref: spec-agent-chain
 
 
   # ── 误匹配防护——负权重，无技能 ────────────────────────
