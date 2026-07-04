@@ -10,6 +10,7 @@ agents:
     description: 技术文档工程师 — 开发者文档和内容工程
     file: routes/docs-writer.yaml
     priority: 12
+    chain_ref: pub-chain
   document-processor:
     condition: 文档格式转换/PDF/OCR/Office 文件处理
     description: 文档处理与转换 — 格式转换+公文排版
