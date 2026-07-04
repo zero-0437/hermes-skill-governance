@@ -1,0 +1,54 @@
+chain_name: debugger-chain
+chain_keywords: [调试管线, bug诊断, debug-chain, 排错, diagnosing-bugs, 诊断bug, diagnosing bugs]
+description: "Bug 诊断管线 — 6 阶段：回路→复现→假设→插桩→修复→清理"
+owner: error-analyst
+steps:
+  - agent: error-analyst
+    goal: "Phase 1: Build a feedback loop — 构建 tight 复现回路"
+    keywords: [feedback-loop, reproduce, failing-test]
+    completion_contract:
+      - type: script
+        description: "回路已构建（不限于测试文件，包括 curl/CLI/browser 等任意形式）"
+        verify_command: "true"  # 灵活验证，由 error-analyst 报告回路存在
+  - agent: programmer
+    goal: "Phase 2: Reproduce + minimise — 跑回路确认 bug，最小化到负载承载"
+    keywords: [minimise, isolate, reduce]
+    completion_contract:
+      - type: script
+        description: "回路可运行且最小化已确认"
+        verify_command: "true"
+  - agent: error-analyst
+    goal: "Phase 3: Hypothesise — 提出 3-5 个可证伪根因假设，排序展示给用户"
+    keywords: [hypothesise, root-cause, diagnosis]
+    completion_contract:
+      - type: script
+        description: "假设文档存在"
+        verify_command: "test -f hypothesis.md"
+  - agent: programmer
+    goal: "Phase 4: Instrument — 一次改一个变量，插 [DEBUG-xxx] 定位根因"
+    keywords: [instrument, debug-log, trace]
+    completion_contract:
+      - type: script
+        description: "根因已定位"
+        verify_command: "true"
+  - agent: programmer
+    goal: "Phase 5: Fix + regression test — 先写回归再修，重跑回路验证"
+    keywords: [fix, regression, verify]
+    completion_contract:
+      - type: test
+        description: "回归测试全部通过"
+        verify_command: "uv run pytest -x"
+  - agent: programmer
+    goal: "Phase 6: Cleanup + post-mortem — 清 DEBUG 日志，记录事后分析"
+    keywords: [cleanup, postmortem, remove-logs]
+    completion_contract:
+      - type: script
+        description: "无 DEBUG 标记残留"
+        verify_command: "! grep -q 'DEBUG-' src/ -r"
+chain_step_skills:
+  error-analyst@0: [diagnosing-bugs]       # Phase 1: 回路构建
+  error-analyst@1: []                      # Phase 2: 最小化
+  error-analyst@2: [diagnosing-bugs]       # Phase 3: 假设
+  error-analyst@3: []                      # Phase 4: 插桩
+  error-analyst@4: [requesting-code-review] # Phase 5: 修复+回归
+  error-analyst@5: []                      # Phase 6: 清理

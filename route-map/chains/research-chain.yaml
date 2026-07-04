@@ -1,0 +1,28 @@
+chain_name: research-chain
+chain_keywords: [调研, 研究, research, 调查, 对比分析, 竞品, benchmarking]
+description: "并行调研管线 — 拆解方向→多路并行调研→合并报告"
+owner: data-analyst
+steps:
+  - agent: pm-agent
+    goal: 拆解调研方向为多个独立分支
+    keywords: [decompose, split-directions, 拆解任务]
+  - type: parallel
+    keywords: [并行调研, parallel-research]
+    branches:
+      - agent: data-analyst
+        goal: "方向A：搜索引擎+网页调研"
+        keywords: [search-web, 网页搜索]
+      - agent: data-analyst
+        goal: "方向B：GitHub Issues/PR 调研"
+        keywords: [github-search, issue-research]
+      - agent: data-analyst
+        goal: "方向C：文档/资料调研"
+        keywords: [docs-research, 文档调研]
+    join_strategy: merge
+  - agent: pm-agent
+    goal: 合并各方向结果，输出结构化调研报告
+    keywords: [merge, summarize, 合并报告]
+chain_step_skills:
+  data-analyst@0: [writing-plans, task-decomposition]
+  data-analyst@1: [web-research]
+  data-analyst@2: [report-writing]

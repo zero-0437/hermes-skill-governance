@@ -1,0 +1,15 @@
+chain_name: triage-chain
+chain_keywords: [核实, triage, 分类, needs-info, 验收标准, agent-brief]
+description: "Triage 前置核实 — 分类→查重→问清→Agent Brief→转执行链。交互式，信息不够就 needs-info 问用户。"
+owner: spec-agent
+steps:
+  - agent: spec-agent
+    goal: "Phase 1-3: 核实信息完整度→查重→写 Agent Brief（含验收标准）"
+    keywords: [verify, classify, reproduce, brief, acceptance-criteria]
+    type: interactive
+    completion_contract:
+      - type: script
+        description: "Agent Brief 文件存在"
+        verify_command: "test -f agent_brief.md"
+chain_step_skills:
+  spec-agent@0: [triage]

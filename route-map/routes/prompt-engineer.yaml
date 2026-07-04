@@ -1,0 +1,76 @@
+# route-map/routes/prompt-engineer.yaml
+# Prompt 审计专家 — SOUL.md 质量审计+改写
+agent: prompt-engineer
+priority: 10
+condition: Prompt 设计/优化/测试
+rules:
+  # ── 提示词设计/工程 ────────────────────────────────────
+  - type: phrase
+    pattern: 提示词
+    weight: 1.0
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 提示工程
+    weight: 1.0
+    skills: []
+    fuzzy: true
+  - type: regex
+    pattern: \b(Prompt|system.*prompt|instruction|role.*prompt)\b
+    weight: 1.0
+    skills: []
+  - type: phrase
+    pattern: 角色定义
+    weight: 0.9
+    skills: []
+    fuzzy: true
+
+  # ── SOUL.md 审计/优化 ─────────────────────────────────
+  - type: phrase
+    pattern: SOUL.md 审计
+    weight: 0.9
+    skills: []
+  - type: phrase
+    pattern: prompt 优化
+    weight: 0.9
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: prompt 测试
+    weight: 0.9
+    skills: []
+    fuzzy: true
+
+  # ── 高级技术（few-shot/COT 等）─────────────────────────
+  - type: regex
+    pattern: \\b(instruction.*tuning|few.*shot|chain.*of.*thought|COT)\\b
+    weight: 0.8
+    skills: []
+
+  # ── 指令/角色设定（2026-07-02 新增） ──────────────────────────
+  - type: phrase
+    pattern: 指令
+    weight: 0.6
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 角色设定
+    weight: 0.8
+    skills: []
+    fuzzy: true
+
+  # ── 技能蒸馏 / 学习（v0.18 /learn 集成）───────────────
+  - type: phrase
+    pattern: 学习
+    weight: 0.6
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 蒸馏
+    weight: 0.8
+    skills: []
+    fuzzy: true
+  - type: regex
+    pattern: \\b(skill.*蒸馏|skill.*distill|学成技能|技能化)\\b
+    weight: 1.0
+    skills: []

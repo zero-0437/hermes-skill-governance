@@ -50,3 +50,20 @@ rules:
     pattern: 冲突
     weight: 1.0
     skills: [multi-agent-swarm]
+
+  # ── Agent 治理/技能注入 → skill-creator ──────────────────
+  - type: phrase
+    pattern: 技能注入
+    weight: 0.8
+    skills: [skill-creator, architecture-integrity-check]
+    fuzzy: true
+  - type: phrase
+    pattern: 子 Agent
+    weight: 0.8
+    skills: [skill-creator, multi-agent-arch]
+    fuzzy: true
+  - type: phrase
+    pattern: 方案设计
+    weight: 0.6
+    skills: [product-manager, plan]
+    fuzzy: true

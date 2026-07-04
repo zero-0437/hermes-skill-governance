@@ -1,0 +1,134 @@
+# route-map/routes/docs-writer.yaml
+# 技术文档工程师 — 开发者文档和内容工程
+agent: docs-writer
+priority: 12
+condition: 技术文档/API 参考/README/教程
+rules:
+  # ── 文档写作 ───────────────────────────────────────────
+  - type: phrase
+    pattern: 文档
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+  - type: phrase
+    pattern: 说明文档
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+  - type: phrase
+    pattern: 技术文档
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+  - type: phrase
+    pattern: 写文档
+    weight: 1.0
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+
+  # ── 教程/指南/手册
+  - type: phrase
+    pattern: 教程
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+  - type: phrase
+    pattern: 指南
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+  - type: phrase
+    pattern: 手册
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+  - type: phrase
+    pattern: 写作
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+
+  # ── API 文档/README ────────────────────────────────────
+  - type: phrase
+    pattern: readme
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+  - type: regex
+    pattern: API.*参考
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 写 README
+    weight: 1.0
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+  - type: phrase
+    pattern: api 参考
+    weight: 1.0
+    skills: []
+  - type: phrase
+    pattern: api 文档
+    weight: 1.0
+    skills:
+      - doc-coauthoring
+
+  # ── 英文关键词（usage/installation 等）──────────────────
+  - type: regex
+    pattern: 
+      \b(usage|installation|getting\.started|quickstart|changelog|contributing)\b
+    weight: 0.7
+    skills: []
+
+  # ── 误匹配防护——负权重，无技能 ────────────────────────
+  - type: phrase
+    pattern: 格式转换
+    weight: -0.3
+    skills: []
+  - type: phrase
+    pattern: PDF 导出
+    weight: -0.3
+    skills: []
+  - type: phrase
+    pattern: 转换格式
+    weight: -0.3
+    skills: []
+  - type: regex
+    pattern: \\b(OCR)\\b
+    weight: -0.3
+    skills: []
+
+  # ── 更新日志/注释（2026-07-02 新增） ──────────────────────────
+  - type: phrase
+    pattern: 更新日志
+    weight: 0.8
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+  - type: phrase
+    pattern: 注释
+    weight: 0.6
+    skills:
+      - doc-coauthoring
+    fuzzy: true
+
+  # ── 路由引擎发布/更新 → 触发 pub-chain ────────────────
+  - type: phrase
+    pattern: 上传路由引擎
+    weight: 1.0
+    skills: []
+    chain_ref: pub-chain
+  - type: phrase
+    pattern: 发布路由引擎
+    weight: 1.0
+    skills: []
+    chain_ref: pub-chain
+  - type: phrase
+    pattern: 更新路由引擎
+    weight: 1.0
+    skills: []
+    chain_ref: pub-chain

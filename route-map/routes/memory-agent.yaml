@@ -1,0 +1,128 @@
+# route-map/routes/memory-agent.yaml
+# 跨任务持久化记忆库 — 只追加不修改
+agent: memory-agent
+priority: 9
+condition: "记忆管理/知识库/Obsidian 笔记"
+rules:
+  # ── 记忆/知识管理 ──────────────────────────────────────
+  - type: phrase
+    pattern: "记忆"
+    weight: 0.9
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: "知识库"
+    weight: 0.9
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: "知识管理"
+    weight: 0.8
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: "历史会话"
+    weight: 0.8
+    fuzzy: true
+    skills: []
+
+  # ── 笔记/Obsidian ─────────────────────────────────────
+  - type: phrase
+    pattern: "笔记"
+    weight: 0.7
+    fuzzy: true
+    skills: []
+  - type: regex
+    pattern: "\\b(Obsidian|llm.*wiki|wiki.*query)\\b"
+    weight: 0.9
+    skills: []
+
+  # ── 回顾/记忆操作 ─────────────────────────────────────
+  - type: phrase
+    pattern: "之前说过"
+    weight: 0.8
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: "记住"
+    weight: 0.7
+    fuzzy: true
+    skills: []
+  - type: phrase
+    pattern: "忘记"
+    weight: 0.7
+    fuzzy: true
+    skills: []
+
+  # ── 主动记忆操作（2026-07-02 新增） ────────────────────────────
+  - type: phrase
+    pattern: 记录
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 保存
+    weight: 0.5
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 回顾
+    weight: 0.7
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 总结
+    weight: 0.7
+    skills: []
+    fuzzy: true
+
+  # ── 文档记忆系统（对话归档/搜索/摘要/清理）────────────────────
+  - type: phrase
+    pattern: 归档
+    weight: 1.0
+    skills: []
+    fuzzy: true
+    description: 归档微信对话到文档记忆系统
+  - type: phrase
+    pattern: 文档记忆
+    weight: 1.0
+    skills: []
+    fuzzy: true
+    description: 文档记忆系统管理
+  - type: phrase
+    pattern: 搜一下
+    weight: 0.9
+    skills: []
+    fuzzy: true
+    description: 搜索已归档的对话记录
+  - type: regex
+    pattern: 搜索.*(对话|记忆|记录|会话)
+    weight: 0.9
+    skills: []
+    description: 搜索历史对话
+  - type: phrase
+    pattern: 摘要
+    weight: 0.8
+    skills: []
+    fuzzy: true
+    description: 生成对话摘要
+  - type: phrase
+    pattern: 运行清理
+    weight: 1.0
+    skills: []
+    description: 执行数据清理
+  - type: regex
+    pattern: 清理.*(数据|文档|记忆|过期)
+    weight: 0.9
+    skills: []
+    description: 清理过期数据
+  - type: regex
+    pattern: (之前|历史).*(说过|对话|讨论|聊过|提到)
+    weight: 0.8
+    skills: []
+    description: 查询历史对话记录
+  - type: regex
+    pattern: \\b(archive|recall)\\b
+    weight: 0.8
+    skills: []
+    description: 归档或搜索操作

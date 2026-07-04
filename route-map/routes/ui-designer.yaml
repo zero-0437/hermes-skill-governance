@@ -1,0 +1,148 @@
+# route-map/routes/ui-designer.yaml
+# 前端与视觉设计 — 设计实现+创意生成
+agent: ui-designer
+priority: 5
+condition: UI/UX 设计/视觉图表/前端原型
+rules:
+  # ── UI/UX 设计 ─────────────────────────────────────────
+  - type: phrase
+    pattern: 界面
+    weight: 0.8
+    skills:
+      - claude-design
+      - excalidraw
+      - taste-skill
+  - type: phrase
+    pattern: 视觉
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 图标
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 样式
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 布局
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 配色
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 动效
+    weight: 0.8
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 动画
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: \b(UI|UX)\b
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: 设计.*界面
+    weight: 0.8
+    skills:
+      - claude-design
+      - excalidraw
+      - taste-skill
+  - type: phrase
+    pattern: 组件
+    weight: 0.6
+    skills: []
+  - type: phrase
+    pattern: 响应式
+    weight: 0.6
+    skills: []
+    fuzzy: true
+  - type: phrase
+    pattern: 美观
+    weight: 0.6
+    skills: []
+  - type: phrase
+    pattern: 美化
+    weight: 0.6
+    skills: []
+    fuzzy: true
+
+  # ── 通用设计意图（2026-07-02 新增） ────────────────────────────
+  - type: phrase
+    pattern: 设计
+    weight: 0.6
+    skills:
+      - claude-design
+      - excalidraw
+      - taste-skill
+    fuzzy: true
+
+  # ── 原型/草图/线框图 ───────────────────────────────────
+  - type: phrase
+    pattern: 草图
+    weight: 0.9
+    skills: []
+  - type: phrase
+    pattern: 线框图
+    weight: 0.9
+    skills: []
+  - type: regex
+    pattern: \b(mockup|figma|sketch)\b
+    weight: 0.9
+    skills: []
+  - type: regex
+    pattern: 设计.*原型
+    weight: 0.9
+    skills:
+      - claude-design
+      - excalidraw
+      - taste-skill
+
+  # ── 前端开发 ───────────────────────────────────────────
+  - type: phrase
+    pattern: 前端
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: \b(css|html|react|vue)\b
+    weight: 0.6
+    skills: []
+
+  # ── 图表/海报/宣传图 ──────────────────────────────────
+  - type: phrase
+    pattern: 图表设计
+    weight: 0.8
+    skills:
+      - claude-design
+      - excalidraw
+      - taste-skill
+    fuzzy: true
+  - type: phrase
+    pattern: 海报
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 宣传图
+    weight: 0.8
+    skills: []
+  - type: regex
+    pattern: \b(infographic|banner)\b
+    weight: 0.8
+    skills: []
+  - type: phrase
+    pattern: 图
+    weight: 0.5
+    skills:
+      - architecture-diagram
+  - type: phrase
+    pattern: 设计稿
+    weight: 0.8
+    skills:
+      - claude-design
+      - excalidraw
+      - taste-skill
+    fuzzy: true

@@ -1,0 +1,19 @@
+chain_name: learn-chain
+chain_keywords: [学习, 蒸馏, skill蒸馏, learn, 学成技能, 学习这个, 技能化]
+description: "技能蒸馏管线 — 分析→撰写SKILL.md→验证"
+owner: prompt-engineer
+steps:
+  - agent: prompt-engineer
+    goal: 分析输入（目录/URL/对话），提取可复用模式
+    keywords: [analyze, extract-pattern, 分析流程]
+    type: interactive
+  - agent: programmer
+    goal: 按 CONTRIBUTING.md 标准撰写 SKILL.md
+    keywords: [write-skill, skill-authoring, 编写技能]
+  - agent: reality-checker
+    goal: 验证技能能被 skill_view 正确加载
+    keywords: [verify, validate, 验证]
+chain_step_skills:
+  prompt-engineer@0: [prompt-engineering]
+  prompt-engineer@1: [skill-authoring]
+  prompt-engineer@2: [verification]

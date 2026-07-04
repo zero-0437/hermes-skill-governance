@@ -1,0 +1,69 @@
+# chain_name: spec-agent-chain
+# NOTE: 此 chain 未在 index.yaml 中显式注册 chain_ref，通过 chains/ 目录扫描发现。
+# 任何 agent 需要此流程时可在 index.yaml 的 chain_ref 中引用。
+chain_name: spec-agent-chain
+chain_keywords: [新项目管线, spec-chain, prd管线, 需求分析管线]
+description: "新项目管线 — 需求分析→制定计划→任务拆解→批量实现→并行审查→验证门控→收尾"
+owner: spec-agent
+steps:
+  - agent: spec-agent
+    goal: brainstorming — 需求分析、产出设计文档
+    keywords: [brainstorming, design, 需求分析]
+    completion_contract:
+      - type: script
+        description: "PRD 设计文档存在"
+        verify_command: "test -f PRD.md"
+  - agent: pm-agent
+    goal: writing-plans — 制定2-5分钟粒度的执行计划
+    keywords: [writing-plans, plan, 制定计划]
+    completion_contract:
+      - type: script
+        description: "执行计划文件存在"
+        verify_command: "test -f plan.md"
+  - agent: pm-agent
+    goal: 根据 PRD 拆解实现任务为垂直切片
+    keywords: [decompose, slice, plan]
+    completion_contract:
+      - type: script
+        description: "任务拆解列表文件存在"
+        verify_command: "test -f task-list.md"
+  - agent: programmer
+    goal: 按拆解后的任务逐个实现
+    keywords: [implement, build, execute]
+    batch: true
+  - type: parallel
+    keywords: [并行审查, cross-check, 双路质检]
+    branches:
+      - agent: error-analyst
+        goal: "Standards 审查：检查代码规范和代码坏味道"
+        keywords: [standards, smell, conventions]
+      - agent: programmer
+        goal: "Spec 审查：检查实现是否匹配 spec/PRD"
+        keywords: [spec-check, impl-review, match]
+    join_strategy: separate
+  - agent: reality-checker
+    goal: verification-before-completion — 运行测试+curl验证+断言检查
+    keywords: [verification, validate, test, 验证门控]
+    type: interactive
+    completion_contract:
+      - type: test
+        description: "所有测试通过"
+        verify_command: "uv run pytest -x"
+      - type: curl
+        description: "服务健康检查"
+        verify_command: "curl -sf http://localhost:8080/health"
+  - agent: programmer
+    goal: finishing-a-development-branch — commit→PR→收尾
+    keywords: [finish, deliver, pr, 分支收尾]
+    completion_contract:
+      - type: script
+        description: "Git 工作区干净，PR 已提交"
+        verify_command: "git status --porcelain | head -5"
+chain_step_skills:
+  spec-agent@0: [brainstorming, architecture-integrity-check]
+  spec-agent@1: [writing-plans]
+  spec-agent@2: [architecture-integrity-check]
+  spec-agent@3: []                         # Step 3: 批量实现 by programmer
+  spec-agent@4: []                         # Step 4: 并行审查（skills in branches）
+  spec-agent@5: [verification-before-completion]
+  spec-agent@6: [finishing-a-development-branch]

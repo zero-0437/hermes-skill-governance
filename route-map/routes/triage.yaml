@@ -1,0 +1,35 @@
+# route-map/routes/triage.yaml
+# Triage 前置核实 — 信息完整度检查 + 查重 + Agent Brief
+agent: triage
+priority: 1
+condition: 未确认的 bug/feature 报告，需前置核实
+rules:
+  # ── 报告 bug → triage（核实 + 问清 + Agent Brief） ──
+  - type: phrase
+    pattern: bug
+    weight: 1.0
+    skills: [triage]
+    description: "优先抢过 error-analyst 的 bug 规则，信息完整则下方负权重放行"
+  - type: phrase
+    pattern: 报 bug
+    weight: 1.0
+    skills: [triage]
+  - type: phrase
+    pattern: 出了个bug
+    weight: 1.2
+    skills: [triage]
+    fuzzy: true
+  - type: phrase
+    pattern: 闪退
+    weight: 0.8
+    skills: [triage]
+  - type: phrase
+    pattern: 崩溃
+    weight: 0.7
+    skills: [triage]
+
+  # ── 信息完整 → 负权重放行，流向 error-analyst → debugger-chain ──
+  - type: regex
+    pattern: (复现步骤|错误日志|crash log|报错信息|错误信息)
+    weight: -2.0
+    skills: []
