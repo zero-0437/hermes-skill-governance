@@ -1,15 +1,22 @@
 chain_name: debugger-chain
-chain_keywords: [调试管线, bug诊断, debug-chain, 排错, diagnosing-bugs, 诊断bug, diagnosing bugs]
-description: "Bug 诊断管线 — 6 阶段：回路→复现→假设→插桩→修复→清理"
+chain_keywords: [调试管线, bug诊断, debug-chain, 排错, diagnosing-bugs, 诊断bug, diagnosing bugs, 修 bug]
+description: "Bug 诊断管线 — 交互式选择调试深度后执行对应路径"
 owner: error-analyst
 steps:
+  # ── Step 0: 交互式选择调试深度 ──
+  - agent: error-analyst
+    goal: "选择调试深度 — ①快速修复(直接修+回归) / ②完整诊断(6步全流程) / ③先核实(triage前置核实)"
+    interactive: true
+    keywords: [choose-depth, debug-depth]
+
+  # ── 路径 ①②③：回路 → 复现 → 最小化 ──
   - agent: error-analyst
     goal: "Phase 1: Build a feedback loop — 构建 tight 复现回路"
     keywords: [feedback-loop, reproduce, failing-test]
     completion_contract:
       - type: script
         description: "回路已构建（不限于测试文件，包括 curl/CLI/browser 等任意形式）"
-        verify_command: "true"  # 灵活验证，由 error-analyst 报告回路存在
+        verify_command: "true"
   - agent: programmer
     goal: "Phase 2: Reproduce + minimise — 跑回路确认 bug，最小化到负载承载"
     keywords: [minimise, isolate, reduce]
@@ -17,6 +24,8 @@ steps:
       - type: script
         description: "回路可运行且最小化已确认"
         verify_command: "true"
+
+  # ── 路径 ②③：提假设（①快速修复直接跳过）──
   - agent: error-analyst
     goal: "Phase 3: Hypothesise — 提出 3-5 个可证伪根因假设，排序展示给用户"
     keywords: [hypothesise, root-cause, diagnosis]
@@ -24,6 +33,8 @@ steps:
       - type: script
         description: "假设文档存在"
         verify_command: "test -f hypothesis.md"
+
+  # ── 路径 ②：插桩定位（①③跳过）──
   - agent: programmer
     goal: "Phase 4: Instrument — 一次改一个变量，插 [DEBUG-xxx] 定位根因"
     keywords: [instrument, debug-log, trace]
@@ -31,6 +42,8 @@ steps:
       - type: script
         description: "根因已定位"
         verify_command: "true"
+
+  # ── 路径 ①②③：修复+回归+清理 ──
   - agent: programmer
     goal: "Phase 5: Fix + regression test — 先写回归再修，重跑回路验证"
     keywords: [fix, regression, verify]
