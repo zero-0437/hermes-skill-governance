@@ -2,7 +2,7 @@
   "schema_version": "2.5",
   "cache_version": 1,
   "ttl_minutes": 30,
-  "last_updated": "2026-06-30T14:55:51Z",
+  "last_updated": "2026-07-02T13:49:28Z",
   "agents": {
     "data-analyst": {
       "role": "数据搜索与分析 — 多渠道信息检索，先判再搜",
@@ -18,7 +18,21 @@
         "blogwatcher",
         "polymarket",
         "llm-wiki",
-        "youtube-content"
+        "youtube-content",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "docs-writer": {
@@ -28,7 +42,25 @@
       ],
       "manual": [
         "doc-coauthoring",
-        "humanizer-zh"
+        "humanizer-zh",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "document-processor": {
@@ -45,7 +77,19 @@
         "civil-servant",
         "engineering-technical-writer",
         "humanizer-zh",
-        "ocr-and-documents"
+        "ocr-and-documents",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "error-analyst": {
@@ -61,7 +105,25 @@
         "engineering-security-engineer",
         "engineering-incident-response-commander",
         "github-code-review",
-        "network-debugging"
+        "network-debugging",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "file-ops": {
@@ -72,7 +134,23 @@
       "manual": [
         "ssh-172",
         "ssh-remote-access",
-        "github-push"
+        "github-push",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy"
       ]
     },
     "memory-agent": {
@@ -81,7 +159,26 @@
         "llm-wiki",
         "obsidian"
       ],
-      "manual": []
+      "manual": [
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
+      ]
     },
     "pm-agent": {
       "role": "技术架构师 + 执行调度者 — 方案设计→任务拆解→委派→闭环汇报",
@@ -107,12 +204,31 @@
         "自检测",
         "superpowers",
         "product-manager",
-        "teacher"
+        "teacher",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "programmer": {
       "role": "代码编写与调试 — 按 TDD 纪律交付可工作代码",
       "auto": [
+        "github-auth",
         "requesting-code-review",
         "test-driven-development",
         "systematic-debugging",
@@ -127,6 +243,7 @@
         "github-search",
         "engineering-git-workflow-master",
         "resolving-merge-conflicts",
+        "android-github-actions-build",
         "claude-code",
         "codex",
         "opencode",
@@ -138,7 +255,22 @@
         "quick-prototype",
         "compatibility-audit",
         "node-inspect-debugger",
-        "python-debugpy"
+        "python-debugpy",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "prompt-engineer": {
@@ -146,7 +278,26 @@
       "auto": [
         "engineering-prompt-engineer"
       ],
-      "manual": []
+      "manual": [
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
+      ]
     },
     "reality-checker": {
       "role": "集成测试与现实检验 — 阻止幻想式审批，要求压倒性证据",
@@ -154,7 +305,26 @@
         "dogfood",
         "systematic-debugging"
       ],
-      "manual": []
+      "manual": [
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
+      ]
     },
     "spec-agent": {
       "role": "规格与对齐 Agent — 需求调研+领域建模+PRD 产出，只写文档不碰代码",
@@ -166,7 +336,25 @@
       ],
       "manual": [
         "humanizer-zh",
-        "product-manager"
+        "product-manager",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     },
     "synology-helper": {
@@ -177,7 +365,23 @@
       ],
       "manual": [
         "hermes-maintenance",
-        "ssh-remote-access"
+        "ssh-remote-access",
+        "excalidraw",
+        "architecture-diagram",
+        "p5js",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy"
       ]
     },
     "ui-designer": {
@@ -196,7 +400,22 @@
         "claude-design",
         "sketch",
         "pretext",
-        "taste-skill"
+        "taste-skill",
+        "hermes-light-backup",
+        "github-search",
+        "maps",
+        "arxiv",
+        "jupyter-live-kernel",
+        "pdf",
+        "docx",
+        "xlsx",
+        "pptx",
+        "markitdown",
+        "ocr-and-documents",
+        "node-inspect-debugger",
+        "python-debugpy",
+        "ssh-172",
+        "ssh-remote-access"
       ]
     }
   }

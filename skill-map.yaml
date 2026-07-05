@@ -42,6 +42,10 @@ agents:
       - intentional: true
         layer: '2 / load: auto'
         name: engineering-technical-writer
+      发布:
+      - intentional: true
+        layer: '3 / load: auto'
+        name: release-publish
     description: 技术文档工程师 — README/API参考/教程/概念指南写作，docs-as-code 基础设施
   document-processor:
     categories:
@@ -190,6 +194,10 @@ agents:
         name: engineering-git-workflow-master
       - layer: '1 / load: manual'
         name: resolving-merge-conflicts
+      - layer: '1 / load: manual'
+        name: android-github-actions-build
+      - layer: '1 / load: auto'
+        name: github-auth
       委派工具:
       - layer: '1 / load: manual'
         name: claude-code

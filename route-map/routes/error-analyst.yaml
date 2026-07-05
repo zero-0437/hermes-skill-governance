@@ -41,6 +41,11 @@ rules:
     skills: [diagnosing-bugs]
     fuzzy: true
   - type: phrase
+    pattern: 修 bug
+    weight: 1.0
+    skills: [diagnosing-bugs]
+    description: "中文修 bug 直接走 debugger-chain"
+  - type: phrase
     pattern: 根因
     weight: 0.9
     skills: [diagnosing-bugs]

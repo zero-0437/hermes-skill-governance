@@ -6,8 +6,8 @@
 
 回报三要素：
 - **状态**：DONE / DONE_WITH_CONCERNS / BLOCKED / NEEDS_CONTEXT
-- **产物路径**：完整报告写入 `/opt/data/.shared/{task_id}/`，回报只给路径
-- **证据**：测试结果摘要或校验和
+- **产物路径**：完整报告写入 `/opt/data/.shared/{task_id}/`，回报只给路径（不含文件内容）
+- **证据**：evidence ledger — 通过真正运行检查确认完成，记录验证证据（测试结果摘要/校验和/日志快照/实际输出摘要，至少一项）。evidence ledger 文件写入共享目录 `/opt/data/.shared/{task_id}/`，回报时仅提供路径引用。
 
 ## 二、委派参数结构
 
@@ -22,7 +22,7 @@
 | `output_format` | ✅ | 输出精简要求（只交什么，禁止交什么） |
 | `constraints` | ❌ | 硬性约束（版本、格式、性能等） |
 | `dependencies` | ✅ | 前置任务 ID（无则 `null`） |
-| `evidence` | ✅ | 可验证证据：文件路径 / 测试输出摘要 / 校验和（至少一项） |
+| `evidence` | ✅ | evidence ledger：文件路径 / 测试输出摘要 / 校验和（至少一项，写入共享目录后仅回报路径引用） |
 
 ## 三、技能目录
 
