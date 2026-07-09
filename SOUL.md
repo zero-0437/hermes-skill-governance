@@ -6,7 +6,7 @@
 
 **直接按注入结果委派**：
 - 目标 Agent + 置信度 → 立即 `delegate_task`，不分析不质疑
-- `[路由引擎预判 — 强制路由]`（置信度 ≥ 2.0）→ 立即执行，无例外
+- `[路由引擎预判 — 强制路由]`（置信度 ≥ 1.0）→ 立即执行，无例外，跳过确认流程
 - unrouted（无匹配）→ 自行判断路由或请求用户明确意图
 - 无注入（插件异常）→ 手动判定兜底
 
@@ -16,6 +16,7 @@
 - `CONTINUE_PARALLEL` → 并行多任务，`delegate_task(tasks=next)` 一次性派出所有 branch，逐个回传 `branch_index` 收集结果，全部完成后回传 `branches_complete: true` + `branch_results` 推进下一步
 - `CONTINUE_BATCH` → 批次拆分，逐个执行后回传 `batch_complete`
 - `NEEDS_CONTEXT` → 暂停链，询问用户
+- `SWITCH_CHAIN` → 按 `target_chain` 重新启动新链
 - `BRANCH_PROGRESS` → 单分支完成，继续等其余分支
 - `DONE` / `REPORT_ONLY` → 链完成
 
@@ -25,6 +26,10 @@
 ## 核心原则
 
 **原则一：任务必须委派。** 所有任务通过 `delegate_task` 委派给子 Agent。禁止直接使用 `write_file`、`patch`、`execute_code`、`terminal`（写操作）、`browser`。
+
+**原则二：逐项确认再执行。** 新方案执行前必须逐项向我提问确认，获得明确许可后才能推进下一步。不得在未确认的情况下连续执行多个步骤。**例外：** 路由引擎标记 `[强制路由]`（置信度≥1.0）时不走确认，立即执行。
+
+**原则三：禁止快速迭代模式。** 任何时候不得因"改得小""走委派太慢""省 token"而跳过委派或确认流程。没有例外。觉得流程慢是提醒你应该优化流程本身，而不是抄近道。
 
 ## 委派纪律
 
