@@ -1,31 +1,41 @@
 chain_name: dual-review-chain
 chain_keywords: [双评审, d-review, 合规检查, 代码审查, 代码评审, 审查代码, code review, audit, 代码质量, review]
-description: "双评审 — spec合规评审→代码质量评审→仅出报告"
+description: "双评审 — 三轴并行评审（spec合规/代码质量/架构），同步出报告"
 report_only: true
 owner: dual-review
 steps:
-  - agent: error-analyst
-    goal: spec 合规评审
-    keywords: [spec-review, verify, compliance]
+  - type: parallel
+    join_strategy: separate
+    branches:
+      - agent: error-analyst
+        goal: spec 合规评审
+        keywords: [spec-review, verify, compliance]
+        completion_contract:
+          - type: script
+            description: "评审报告文件存在"
+            verify_command: "test -f review_report.md"
+      - agent: programmer
+        goal: 代码质量评审
+        keywords: [quality-review, code-review, audit]
+        completion_contract:
+          - type: script
+            description: "质量评审报告文件存在"
+            verify_command: "test -f quality_report.md"
+      - agent: data-analyst
+        goal: "Architecture 轴评审 — 模块边界/接口一致性/ADR合规/依赖方向/模式一致性/测试seam质量/scope creep检测"
+        keywords: [architecture-review, adr, module-boundary, dependency]
+        completion_contract:
+          - type: script
+            description: "架构评审报告文件存在"
+            verify_command: "test -f architecture_report.md"
+  - type: serial
+    interactive: true
+    agent: dual-review
+    goal: "三轴评审已完成，等待用户查看报告并决定后续步骤"
+    keywords: [pause, review-report, summary]
     completion_contract:
       - type: script
-        description: "评审报告文件存在"
-        verify_command: "test -f review_report.md"
-  - agent: programmer
-    goal: 代码质量评审
-    keywords: [quality-review, code-review, audit]
-    completion_contract:
-      - type: script
-        description: "质量评审报告文件存在"
-        verify_command: "test -f quality_report.md"
-  - agent: data-analyst
-    goal: "Architecture 轴评审 — 模块边界/接口一致性/ADR合规/依赖方向/模式一致性/测试seam质量/scope creep检测"
-    keywords: [architecture-review, adr, module-boundary, dependency]
-    completion_contract:
-      - type: script
-        description: "架构评审报告文件存在"
-        verify_command: "test -f architecture_report.md"
+        description: "三份报告都存在"
+        verify_command: "test -f review_report.md && test -f quality_report.md && test -f architecture_report.md"
 chain_step_skills:
-  dual-review@0: [code-review, codebase-inspection]
-  dual-review@1: [receiving-code-review]
-  dual-review@2: [architecture-review, codebase-inspection]
+  dual-review@0: [code-review, receiving-code-review, architecture-review, codebase-inspection]

@@ -33,6 +33,11 @@ agents:
     description: 文件操作专员 — 文件系统操作+GitHub推送
     file: routes/file-ops.yaml
     priority: 7
+  restart-gateway:
+    condition: "重启网关/重启 Hermes/gateway 操作"
+    description: "重启 Hermes 消息网关（s6-svc 操作）"
+    file: routes/restart-gateway.yaml
+    priority: 7
   memory-agent:
     condition: 记忆管理/知识库/文档记忆/历史对话搜索/归档清理
     description: 跨任务持久化记忆库 — 记忆管理+知识库+文档记忆系统
@@ -81,6 +86,12 @@ agents:
     file: routes/triage.yaml
     priority: 1
     chain_ref: triage-chain
+  superpowers:
+    condition: 完整开发流程/从设计到交付/Superpowers
+    description: Superpowers 完整 SDLC — 设计→计划→实现循环→验证→收尾
+    file: routes/superpowers.yaml
+    priority: 2
+    chain_ref: superpowers-chain
 defaults:
   fallback_agent: pm-agent
   method: threshold

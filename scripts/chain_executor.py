@@ -37,17 +37,42 @@ try:
 except ImportError:
     yaml = None
 
+import copy
 import sys as _sys
-_SCRIPTS_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "scripts"))
+
+# 确保 scripts 目录在 sys.path 中（供 from briefer import ... 使用）
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPTS_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPTS_DIR)
-del _SCRIPTS_DIR, _sys
-from chain_config import SCRIPT_DIR, load_yaml_safe, load_chain
+
+# briefer — 共享 brief 文件写入工具
+try:
+    from briefer import (
+        write_brief,
+        write_chain_step_brief,
+        write_sub_brief,
+        write_branch_brief,
+        write_loop_item_brief,
+        get_brief_path,
+        ensure_brief_dir,
+    )
+except ImportError:
+    # briefer 未就绪时降级：定义空函数
+    def write_brief(*a, **kw): return a[0] if a else ""
+    def write_chain_step_brief(*a, **kw): return ""
+    def write_sub_brief(*a, **kw): return ""
+    def write_branch_brief(*a, **kw): return ""
+    def write_loop_item_brief(*a, **kw): return ""
+    def get_brief_path(task_id, step_idx=0, suffix=""): return ""
+    def ensure_brief_dir(): return
+from chain_config import SCRIPT_DIR, load_yaml_safe, load_chain, load_index
 
 # ── 路径计算 ────────────────────────────────────
 
 # ── 默认配置 ────────────────────────────────────
 MAX_RETRY = 3
+MAX_TOTAL_ITERATIONS = 100    # 全局迭代次数上限
+CHAIN_TIMEOUT = 3600           # 链执行 wall-clock 超时（秒）
 STATE_DIR = "/opt/data/.shared"
 INDEX_YAML_PATH = os.path.join(SCRIPT_DIR, "..", "route-map", "index.yaml")
 
@@ -105,21 +130,27 @@ def _infer_step_type(goal: str) -> str:
 
 def _get_step_type(step: dict) -> str:
     """判断 step 类型：serial / parallel / interactive / loop"""
-    return step.get("type", STEP_TYPE_SERIAL)
+    stype = step.get("type", STEP_TYPE_SERIAL)
+    if stype == STEP_TYPE_SERIAL and step.get("interactive") is True:
+        return STEP_TYPE_INTERACTIVE
+    return stype
 
 
-def _build_parallel_result(step: dict, step_idx: int) -> dict:
+def _build_parallel_result(step: dict, step_idx: int, task_id: str = "") -> dict:
     """为 parallel 步骤构建 CONTINUE_PARALLEL 响应。
 
     返回结构包含 branches 列表和 join_strategy，
     主 Agent 收到后需并行 delegate_task 所有 branches。
+
+    同时为每个 branch 写入 brief 文件：
+      {task_id}-step{step_idx}-branch{i}.md
     """
     branches = step.get("branches", [])
     if not branches:
         return {"status": "ERROR", "diagnosis": f"step[{step_idx}] parallel 没有 branches"}
 
     branch_tasks = []
-    for b in branches:
+    for i, b in enumerate(branches):
         task = {
             "agent": b["agent"],
             "goal": b["goal"],
@@ -128,6 +159,22 @@ def _build_parallel_result(step: dict, step_idx: int) -> dict:
         if b.get("keywords"):
             task["keywords"] = b["keywords"]
         branch_tasks.append(task)
+
+        # ── 写 branch brief 文件 ──
+        if task_id:
+            try:
+                brief_path = write_sub_brief(
+                    task_id=task_id,
+                    agent=b["agent"],
+                    goal=b["goal"],
+                    step_idx=step_idx,
+                    suffix=f"-branch{i}",
+                    skills=b.get("skills"),
+                    keywords=b.get("keywords"),
+                )
+                task["brief_file"] = brief_path
+            except Exception:
+                pass  # 不阻塞 parallel 执行
 
     return {
         "status": STATUS_CONTINUE_PARALLEL,
@@ -138,10 +185,11 @@ def _build_parallel_result(step: dict, step_idx: int) -> dict:
     }
 
 
-def _build_interactive_result(step: dict, step_idx: int) -> dict:
+def _build_interactive_result(step: dict, step_idx: int, task_id: str = "") -> dict:
     """为 interactive 步骤构建 NEEDS_CONTEXT 响应（带 interactive 标记）。
 
     主 Agent 收到后应暂停链并询问用户确认。
+    同时写入 step brief 文件。
     """
     result = {
         "status": "NEEDS_CONTEXT",
@@ -154,14 +202,31 @@ def _build_interactive_result(step: dict, step_idx: int) -> dict:
     }
     if step.get("keywords"):
         result["keywords"] = step["keywords"]
+    if step.get("jump_map"):
+        result["jump_map"] = step["jump_map"]
+
+    # ── 写 step brief 文件 ──
+    if task_id:
+        try:
+            brief_path = write_chain_step_brief(
+                task_id=task_id, step=step, step_idx=step_idx, skills=[]
+            )
+            result["brief_file"] = brief_path
+        except Exception:
+            pass  # 不阻塞 interactive 执行
+
     return result
 
 
-def _build_loop_result(step: dict, step_idx: int, context: dict) -> dict:
+def _build_loop_result(step: dict, step_idx: int, context: dict,
+                        task_id: str = "") -> dict:
     """为 loop 步骤构建 CONTINUE_LOOP 响应。
 
     从 context 取出 source 数据展开为多个 loop items，
     主 Agent 收到后需逐个执行并按 loop_complete 回传。
+
+    同时为每个 loop item 写入 brief 文件：
+      {task_id}-step{step_idx}-loop{i}.md
     """
     source = step.get("source", "previous_output")
     items = context.get(source, [])
@@ -186,6 +251,22 @@ def _build_loop_result(step: dict, step_idx: int, context: dict) -> dict:
         if step.get("keywords"):
             lo["keywords"] = step["keywords"]
         loop_items.append(lo)
+
+        # ── 写 loop item brief 文件 ──
+        if task_id:
+            try:
+                brief_path = write_sub_brief(
+                    task_id=task_id,
+                    agent=step["agent"],
+                    goal=step["goal"],
+                    step_idx=step_idx,
+                    suffix=f"-loop{i}",
+                    skills=step.get("skills"),
+                    keywords=step.get("keywords"),
+                )
+                lo["brief_file"] = brief_path
+            except Exception:
+                pass  # 不阻塞 loop 执行
 
     return {
         "status": STATUS_CONTINUE_LOOP,
@@ -275,15 +356,19 @@ def _validate_skills(chain_def: list, chain_step_skills: dict, chain_owner: str)
     """验证所有 serial chain step 都有对应的 skills key。返回错误列表，空列表表示无错误。
 
     跳过 parallel / interactive / loop 类型步骤，它们不需要 skills key。
+    支持两种 key 格式：
+      - {chain_owner}@{idx}（单 Agent 链）
+      - {agent}@{idx}（多 Agent 链，如 pub-chain）
     """
     errors = []
     for i, step in enumerate(chain_def):
         step_type = _get_step_type(step)
         if step_type != STEP_TYPE_SERIAL:
             continue  # 非 serial 步骤无需 skills key
-        key = f"{chain_owner}@{i}"
-        if key not in chain_step_skills:
-            errors.append(f"缺少 skills key: '{key}' (step {i}: {step['agent']} → {step['goal']})")
+        owner_key = f"{chain_owner}@{i}"
+        agent_key = f"{step['agent']}@{i}"
+        if owner_key not in chain_step_skills and agent_key not in chain_step_skills:
+            errors.append(f"缺少 skills key: '{owner_key}' 或 '{agent_key}' (step {i}: {step['agent']} → {step['goal']})")
     return errors
 
 
@@ -310,19 +395,69 @@ def _state_path(task_id: str) -> str:
     return os.path.join(STATE_DIR, task_id, "chain-state.json")
 
 
-def _load_state(task_id: str) -> dict:
-    """从磁盘加载指定 task 的状态数据。
+def _try_recover_from_checkpoint(task_id: str) -> dict | None:
+    """尝试从最近的有效 checkpoint 重建 state。
 
-    如果状态文件不存在，返回默认初始状态（current_step=0, retry 计数器归零, concerns=[]）。
+    Checkpoint 存储在 state 同一目录下的 chain-checkpoint.json 文件中。
+    如果 checkpoint 存在且完整，重建包含 current_step、completed_outputs 等字段的 state。
 
     参数:
         task_id: 任务标识符
 
     返回:
-        状态字典，包含 current_step、spec_retry、quality_retry、concerns、context 等字段
+        重建的状态字典，如果 checkpoint 不存在或损坏则返回 None
+    """
+    ckpt_path = os.path.join(STATE_DIR, task_id, "chain-checkpoint.json")
+    if not os.path.exists(ckpt_path):
+        return None
+    try:
+        with open(ckpt_path) as f:
+            ckpt = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"[RECOVERY] checkpoint JSON 解析失败: {ckpt_path} — {e}", file=sys.stderr)
+        return None
 
-    异常:
-        RuntimeError: 状态文件损坏（JSON 解析失败）或不可读时抛出
+    step_idx = ckpt.get("step_idx")
+    if step_idx is None:
+        print(f"[RECOVERY] checkpoint 缺少 step_idx 字段 (task_id={task_id})", file=sys.stderr)
+        return None
+
+    completed_outputs = ckpt.get("completed_outputs", [])
+    print(f"[RECOVERY] 从 checkpoint 重建 state: task_id={task_id}, step={step_idx}", file=sys.stderr)
+
+    # 重建 context，保留 checkpoint 中的 diff_path 和 last_output（如有）
+    context = {"completed_outputs": completed_outputs}
+    if ckpt.get("context_diff_path"):
+        context["diff_path"] = ckpt["context_diff_path"]
+    if ckpt.get("context_last_output"):
+        context["last_output"] = ckpt["context_last_output"]
+
+    return {
+        "current_step": step_idx,
+        "spec_retry": ckpt.get("spec_retry", 0),
+        "quality_retry": ckpt.get("quality_retry", 0),
+        "concerns": ckpt.get("concerns", []),
+        "context": context,
+        "total_iterations": ckpt.get("total_iterations", 0),
+        "chain_started_at": None,
+        "last_checkpoint": ckpt,
+    }
+
+
+def _load_state(task_id: str) -> dict | None:
+    """从磁盘加载指定 task 的状态数据。
+
+    如果状态文件不存在，返回默认初始状态（current_step=0, retry 计数器归零, concerns=[]）。
+
+    如果状态文件损坏或关键字段缺失，尝试从 checkpoint 恢复。
+    如果 checkpoint 也存在但损坏，返回 None 让调用方重新 init。
+
+    参数:
+        task_id: 任务标识符
+
+    返回:
+        状态字典，包含 current_step、spec_retry、quality_retry、concerns、context 等字段。
+        返回 None 表示状态完全损坏且无法恢复，调用方应重新 init。
     """
     path = _state_path(task_id)
     if not os.path.exists(path):
@@ -332,15 +467,32 @@ def _load_state(task_id: str) -> dict:
             "quality_retry": 0,
             "concerns": [],
             "context": {},
+            "total_iterations": 0,
+            "chain_started_at": None,
+            "last_checkpoint": None,
         }
+    state = None
     try:
         with open(path) as f:
-            return json.load(f)
+            state = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
-        raise RuntimeError(
-            f"state 文件损坏或不可读: {path} — {e}。"
-            f"如需恢复，请检查/删除此文件后重试。"
-        )
+        print(f"[RECOVERY] state JSON 解析失败: {path} — {e}", file=sys.stderr)
+        state = None
+
+    # 检查关键字段是否完整
+    if state is not None and "current_step" not in state:
+        print(f"[RECOVERY] state 缺少关键字段 current_step (task_id={task_id})", file=sys.stderr)
+        state = None
+
+    if state is not None:
+        return state
+
+    # ── 尝试从 checkpoint 恢复 ──
+    state = _try_recover_from_checkpoint(task_id)
+    if state is not None:
+        return state
+
+    return None
 
 
 def _save_state(task_id: str, state: dict):
@@ -366,22 +518,67 @@ def _save_state(task_id: str, state: dict):
     os.replace(tmp, path)
 
 
+def _save_checkpoint(task_id: str, checkpoint: dict):
+    """将 checkpoint 原子化写入磁盘。
+
+    Checkpoint 存储在 state 同一目录下的 chain-checkpoint.json 文件中。
+    使用临时文件 + os.replace 确保写入原子性。
+
+    参数:
+        task_id: 任务标识符
+        checkpoint: 要持久化的 checkpoint 字典（含 step_idx, completed_outputs, timestamp）
+    """
+    ckpt_dir = os.path.join(STATE_DIR, task_id)
+    ckpt_path = os.path.join(ckpt_dir, "chain-checkpoint.json")
+    os.makedirs(ckpt_dir, exist_ok=True)
+    tmp = ckpt_path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(checkpoint, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, ckpt_path)
+
+
 def _build_step_result(step: dict, chain_owner: str, step_idx: int,
                        chain_step_skills: dict, context: dict | None = None,
-                       task_id: str = "") -> dict:
+                       task_id: str = "", expansion: dict | None = None) -> dict:
     """为单个 step 构建响应。支持 serial / parallel / interactive / loop 四种类型。
 
     如果 step 有 type 字段且不为 serial，委托给对应的专用构建函数。
     如果 step 有 batch: true，返回 CONTINUE_BATCH 数组。
+    如果 step 有 chain_ref 字段，委托给 _expand_sub_chain() 展开子链。
     """
+    # ── chain_ref 子链展开分支 ──
+    if step.get("chain_ref"):
+        # 递归检测：从当前 expansion 或 context 中提取已展开的 refs
+        current_expanded = []
+        if expansion and expansion.get("expanded_refs"):
+            current_expanded = expansion["expanded_refs"]
+        elif context and context.get("expansion", {}).get("expanded_refs"):
+            current_expanded = context["expansion"]["expanded_refs"]
+        if step["chain_ref"] in current_expanded:
+            return {
+                "status": "ERROR",
+                "diagnosis": f"递归检测：{step['chain_ref']} 已在展开链中 {current_expanded}",
+            }
+        return _expand_sub_chain(
+            chain_ref=step["chain_ref"],
+            parent_step=step,
+            chain_owner=chain_owner,
+            step_idx=step_idx,
+            chain_step_skills=chain_step_skills,
+            context=context or {},
+            task_id=task_id,
+        )
+
     step_type = _get_step_type(step)
 
     if step_type == STEP_TYPE_PARALLEL:
-        return _build_parallel_result(step, step_idx)
+        return _build_parallel_result(step, step_idx, task_id)
     elif step_type == STEP_TYPE_INTERACTIVE:
-        return _build_interactive_result(step, step_idx)
+        return _build_interactive_result(step, step_idx, task_id)
     elif step_type == STEP_TYPE_LOOP:
-        return _build_loop_result(step, step_idx, context or {})
+        return _build_loop_result(step, step_idx, context or {}, task_id)
 
     # ── serial 原有逻辑 ──
     if step.get("batch"):
@@ -419,38 +616,12 @@ def _build_step_result(step: dict, chain_owner: str, step_idx: int,
             },
         }
     else:
-        key = f"{chain_owner}@{step_idx}"
-        skills = chain_step_skills.get(key, [])
+        owner_key = f"{chain_owner}@{step_idx}"
+        agent_key = f"{step['agent']}@{step_idx}"
+        skills = chain_step_skills.get(owner_key) or chain_step_skills.get(agent_key, [])
 
-        # ── 写 Step Brief 文件 ──
-        brief_dir = "/opt/data/.shared/briefs"
-        os.makedirs(brief_dir, exist_ok=True)
-        brief_path = os.path.join(brief_dir, f"{task_id}-step{step_idx}.md")
-
-        step_goal = step.get("goal", "")
-        step_keywords = step.get("keywords", [])
-        step_contract = step.get("completion_contract", [])
-
-        brief_lines = [
-            f"## Step Brief — {task_id}",
-            "",
-            f"### Agent",
-            step["agent"],
-            "",
-            f"### Goal",
-            step_goal,
-            "",
-            f"### Skills",
-            ", ".join(skills),
-            "",
-        ]
-        if step_keywords:
-            brief_lines += ["### Keywords", ", ".join(step_keywords), ""]
-        if step_contract:
-            brief_lines += ["### Completion Contract", json.dumps(step_contract, indent=2, ensure_ascii=False), ""]
-
-        with open(brief_path, "w") as f:
-            f.write("\n".join(brief_lines) + "\n")
+        # ── 写 Step Brief 文件（通过 briefer） ──
+        brief_path = write_chain_step_brief(task_id, step, step_idx, skills)
 
         next_item = {
             "agent": step["agent"],
@@ -458,12 +629,12 @@ def _build_step_result(step: dict, chain_owner: str, step_idx: int,
             "skills": skills,
             "brief_file": brief_path,
         }
-        if step_keywords:
-            next_item["keywords"] = step_keywords
+        if step.get("keywords"):
+            next_item["keywords"] = step["keywords"]
         return {
             "status": "CONTINUE",
             "next": next_item,
-            "context": {"chain_step": step_idx, "step_goal": step_goal},
+            "context": {"chain_step": step_idx, "step_goal": step.get("goal", "")},
         }
 
 
@@ -653,7 +824,8 @@ def _handle_blocked(step_idx: int, agent: str, step_goal: str,
 
 def _handle_needs_fix(task_id: str, state: dict, step_idx: int,
                       agent: str, step_goal: str, step_type: str,
-                      last_result: dict) -> dict:
+                      last_result: dict,
+                      advance_fn=None, fix_agent=None) -> dict:
     """处理 NEEDS_FIX 状态：根据 review 类型增加 retry 计数并返回 RETRY 指令。
 
     支持 spec-review 和 quality-review 两种 retry 类型。
@@ -684,10 +856,11 @@ def _handle_needs_fix(task_id: str, state: dict, step_idx: int,
                 "spec_retry_count": retry,
             }
         _save_state(task_id, state)
+        fix = fix_agent or agent
         return {
             "status": "RETRY",
             "next": {
-                "agent": "programmer",
+                "agent": fix,
                 "goal": f"fix: 根据 spec review 修复 ({retry}/{MAX_RETRY})",
                 "skills": ["test-driven-development", "requesting-code-review"],
             },
@@ -712,10 +885,11 @@ def _handle_needs_fix(task_id: str, state: dict, step_idx: int,
                 "quality_retry_count": retry,
             }
         _save_state(task_id, state)
+        fix = fix_agent or agent
         return {
             "status": "RETRY",
             "next": {
-                "agent": "programmer",
+                "agent": fix,
                 "goal": f"fix: 根据 quality review 修复 ({retry}/{MAX_RETRY})",
                 "skills": ["test-driven-development", "requesting-code-review"],
             },
@@ -991,6 +1165,85 @@ def _handle_parallel_step(step: dict, chain_owner: str, step_idx: int,
                               task_id=task_id)
 
 
+def _expand_sub_chain(
+    chain_ref: str,
+    parent_step: dict,
+    chain_owner: str,
+    step_idx: int,
+    chain_step_skills: dict,
+    context: dict,
+    task_id: str,
+) -> dict:
+    """展开子链并返回第一个子步骤的结果。
+
+    入参：
+        chain_ref: 子链名称（如 "implement-review-subchain"）
+        parent_step: 触发展开的父步骤
+        chain_owner: 父链所属 Agent
+        step_idx: 父链中的锚定步骤索引
+        chain_step_skills: 父链 skills
+        context: 当前上下文
+        task_id: 父链任务 ID
+
+    返回：
+        dict — 与 _build_step_result() 返回格式一致
+    """
+    # 1. 加载子链 YAML（使用模块级 load_chain，可被 mock）
+    sub_chain = load_chain(chain_ref)
+    if sub_chain is None:
+        return {
+            "status": "ERROR",
+            "diagnosis": f"子链 {chain_ref} 不存在（load_chain 返回 None）",
+        }
+
+    # 2. 验证子链 steps 非空
+    sub_steps = sub_chain.get("steps", [])
+    if not sub_steps:
+        return {
+            "status": "ERROR",
+            "diagnosis": f"子链 {chain_ref} steps 为空",
+        }
+
+    # 3. 获取子链 owner 和 skills
+    sub_owner = sub_chain.get("owner", chain_owner)
+    sub_skills_raw = sub_chain.get("chain_step_skills", {})
+    sub_skills = copy.deepcopy(sub_skills_raw) if sub_skills_raw else {}
+
+    # 4. 递归检测：记录已展开的 chain_ref
+    current_expanded = list(context.get("expansion", {}).get("expanded_refs", []))
+    expanded_refs = current_expanded + [chain_ref]
+
+    # 5. 创建 expansion 结构体
+    expansion = {
+        "parent_task_id": task_id,
+        "sub_task_id": f"{task_id}-sub",
+        "anchor_step_idx": step_idx,
+        "sub_steps": copy.deepcopy(sub_steps),
+        "sub_skills": sub_skills,
+        "sub_owner": sub_owner,
+        "sub_current": 0,
+        "expanded_refs": expanded_refs,
+    }
+
+    # 6. 取 sub_steps[0]，调 _build_step_result()
+    sub_step = sub_steps[0]
+    result = _build_step_result(
+        sub_step,
+        sub_owner,
+        0,
+        sub_skills,
+        context,
+        task_id=expansion["sub_task_id"],
+        expansion=expansion,
+    )
+    # 将 expansion 附加到返回结果，由 advance() 统一持久化
+    result["expansion"] = expansion
+    # 子链 context key 加 "sub_" 前缀隔离，避免污染父链上下文
+    if "context" in result and isinstance(result["context"], dict):
+        result["context"] = {f"sub_{k}": v for k, v in result["context"].items()}
+    return result
+
+
 def advance(task_id: str, chain_def: list, chain_step_skills: dict,
             last_result: dict, chain_owner: str = "", report_only: bool = False,
             dry_run: bool = False):
@@ -1048,21 +1301,73 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
             state = _load_state(task_id)
         except RuntimeError as e:
             return {"status": "ERROR", "diagnosis": str(e)}
+        if state is None:
+            return {"status": "ERROR", "diagnosis": f"state 文件完全损坏且无法从 checkpoint 恢复 (task_id={task_id})"}
         # 重置状态（避免跨 session 污染）
+        state.pop("expansion", None)  # 清除残留的 expansion（上一轮崩溃遗留）
         state.update({
             "current_step": 0, "spec_retry": 0, "quality_retry": 0,
             "concerns": [], "context": {}, "chain_owner": chain_owner,
             "report_only": report_only,
+            "total_iterations": 0, "chain_started_at": None,
+            "last_checkpoint": None,
         })
+        import time as _time
+        state["total_iterations"] = state.get("total_iterations", 0) + 1
+        if state.get("chain_started_at") is None:
+            state["chain_started_at"] = _time.time()
         _save_state(task_id, state)
 
         step = chain_def[0]
-        return _build_step_result(step, chain_owner, 0, chain_step_skills, state.get("context", {}), task_id=task_id)
+        result = _build_step_result(step, chain_owner, 0, chain_step_skills, state.get("context", {}), task_id=task_id)
+        if "expansion" in result:
+            state["expansion"] = result["expansion"]
+            _save_state(task_id, state)
+        return result
 
     try:
         state = _load_state(task_id)
     except RuntimeError as e:
         return {"status": "ERROR", "diagnosis": str(e)}
+    if state is None:
+        return {"status": "ERROR", "diagnosis": f"state 文件完全损坏且无法从 checkpoint 恢复 (task_id={task_id})"}
+
+    # ── PAUSED 状态检查：如果链被暂停，立即返回 PAUSED ──
+    if state.get("status") == "PAUSED":
+        return {
+            "status": "PAUSED",
+            "step_idx": state.get("current_step", 0),
+            "agent": last_result.get("agent", ""),
+            "goal": "",
+            "diagnosis": f"chain is paused — use rescue to continue (task_id={task_id})",
+        }
+
+    # ── 全局安全网：总迭代次数检查 ──
+    state["total_iterations"] = state.get("total_iterations", 0) + 1
+    if state["total_iterations"] > MAX_TOTAL_ITERATIONS:
+        _save_state(task_id, state)
+        return {
+            "status": "BLOCKED",
+            "step_idx": state.get("current_step", 0),
+            "agent": last_result.get("agent", ""),
+            "goal": "",
+            "diagnosis": f"total_iterations exceeded MAX_TOTAL_ITERATIONS ({MAX_TOTAL_ITERATIONS})",
+        }
+
+    # ── 全局安全网：Wall-clock 超时检查 ──
+    import time as _time
+    if state.get("chain_started_at") is None:
+        state["chain_started_at"] = _time.time()
+    elif _time.time() - state["chain_started_at"] > CHAIN_TIMEOUT:
+        _save_state(task_id, state)
+        return {
+            "status": "BLOCKED",
+            "step_idx": state.get("current_step", 0),
+            "agent": last_result.get("agent", ""),
+            "goal": "",
+            "diagnosis": f"chain wall-clock timeout exceeded CHAIN_TIMEOUT ({CHAIN_TIMEOUT}s)",
+        }
+    _save_state(task_id, state)
     # 使用 state 中存储的 chain_owner（首次调用时已保存）
     chain_owner = state.get("chain_owner", chain_owner)
     agent = last_result.get("agent", "")
@@ -1072,6 +1377,39 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
     step_idx = state["current_step"]
     if step_idx >= len(chain_def):
         return {"status": "ERROR", "diagnosis": f"state.current_step ({step_idx}) >= chain_def 长度 ({len(chain_def)})，状态与链定义不匹配"}
+
+    # ── jump_map 跳步（来自 interactive 步骤的用户选择）──
+    if last_result.get('from_interactive'):
+        jump_map = chain_def[0].get('jump_map', {}) if chain_def else {}
+        if jump_map:
+            user_choice = last_result.get('user_choice', '')
+            if user_choice:
+                chosen_key = None
+                for key in jump_map:
+                    if key in user_choice:
+                        chosen_key = key
+                        break
+                if chosen_key:
+                    jump = jump_map[chosen_key]
+                    if jump['action'] == 'goto':
+                        target = jump['step']
+                        step = chain_def[target]
+                        result = _build_step_result(step, chain_owner, target,
+                                                   chain_step_skills, state.get("context", {}),
+                                                   task_id=task_id)
+                        if "expansion" in result:
+                            state["expansion"] = result["expansion"]
+                            _save_state(task_id, state)
+                        result['jumped_from_step_0'] = True
+                        result['skipped_steps'] = list(range(1, target))
+                        return result
+                    elif jump['action'] == 'chain':
+                        return {
+                            'status': 'SWITCH_CHAIN',
+                            'target_chain': jump['target'],
+                            'task_id': task_id,
+                            'step_idx': 0,
+                        }
 
     # ── batch_complete ──
     if last_result.get("batch_complete"):
@@ -1092,6 +1430,15 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
     if last_result.get("branch_index") is not None or last_result.get("batch_index") is not None:
         return _accumulate_partial_result(task_id, state, last_result, agent, status)
 
+    # ── SWITCH_CHAIN — 切换到其他链（在状态校验前处理，SWITCH_CHAIN 不是步骤合法状态）──
+    if status == "SWITCH_CHAIN":
+        return {
+            "status": "SWITCH_CHAIN",
+            "target_chain": last_result.get("target_chain", ""),
+            "task_id": task_id,
+            "step_idx": step_idx,
+        }
+
     # ── 校验状态合法性 ──
     step_goal = chain_def[step_idx].get("goal", "")
     if not step_goal:
@@ -1100,7 +1447,11 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
     # 空 status → 首次调用，返回当前步骤
     if not status:
         step = chain_def[step_idx]
-        return _build_step_result(step, chain_owner, step_idx, chain_step_skills, state.get("context", {}), task_id=task_id)
+        result = _build_step_result(step, chain_owner, step_idx, chain_step_skills, state.get("context", {}), task_id=task_id)
+        if "expansion" in result:
+            state["expansion"] = result["expansion"]
+            _save_state(task_id, state)
+        return result
     valid = STEP_VALID_STATUSES.get(step_type, ["DONE", "BLOCKED", "NEEDS_FIX", "NEEDS_CONTEXT"])
     if status not in valid:
         return {
@@ -1114,6 +1465,51 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
 
     # ── NEEDS_CONTEXT — 等待用户 ──
     if status == "NEEDS_CONTEXT":
+        # ── 子链 loop + interactive 用户响应 ──
+        if last_result.get("expansion"):
+            expansion = last_result["expansion"]
+            user_msg = (last_result.get("message") or "").strip().lower()
+            # 判断用户是否确认继续
+            user_says_yes = any(
+                w in user_msg for w in ["y", "yes", "继续", "是", "有", "还有"]
+            )
+            if user_says_yes:
+                # 重置子链，重新执行
+                expansion["sub_current"] = 0
+                state["expansion"] = expansion
+                _save_state(task_id, state)
+                sub_step = expansion["sub_steps"][0]
+                sub_owner = expansion.get("sub_owner", chain_owner)
+                return _build_step_result(
+                    sub_step,
+                    sub_owner,
+                    expansion["anchor_step_idx"],
+                    expansion["sub_skills"],
+                    state.get("context", {}),
+                    task_id=expansion["sub_task_id"],
+                    expansion=expansion,
+                )
+            else:
+                # 用户确认结束 — 清除 expansion，父链推进
+                if "expansion" in state:
+                    del state["expansion"]
+                _save_state(task_id, state)
+                # 继续父链：推进到下一步
+                state["current_step"] = expansion["anchor_step_idx"] + 1
+                _save_state(task_id, state)
+                if state["current_step"] >= len(chain_def):
+                    return _build_chain_done_result(state, chain_def_length=len(chain_def))
+                step = chain_def[state["current_step"]]
+                result = _build_step_result(
+                    step, chain_owner, state["current_step"],
+                    chain_step_skills, state.get("context", {}),
+                    task_id=task_id,
+                )
+                if "expansion" in result:
+                    state["expansion"] = result["expansion"]
+                    _save_state(task_id, state)
+                return result
+
         return {
             "status": "NEEDS_CONTEXT",
             "step_idx": step_idx,
@@ -1132,8 +1528,11 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
     # ── NEEDS_FIX — review 不通过 ──
     if status == "NEEDS_FIX":
         step_type = _infer_step_type(step_goal)
+        # Determine the fix agent dynamically from chain_def
+        fix_agent = chain_def[0].get("agent", agent) if chain_def and len(chain_def) > 0 else agent
         return _handle_needs_fix(task_id, state, step_idx, agent,
-                                 step_goal, step_type, last_result)
+                                 step_goal, step_type, last_result,
+                                 advance_fn=advance, fix_agent=fix_agent)
 
     # ── DONE / APPROVE — 推进或回归 ──
     if status in ("DONE", "APPROVE"):
@@ -1141,6 +1540,64 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
         if last_result.get("output_path"):
             state["context"]["diff_path"] = last_result["output_path"]
         state["context"]["last_output"] = last_result.get("output_path", "")
+
+        # ── Expansion 状态检查：子链正在执行中 ──
+        expansion = state.get("expansion")
+        if expansion:
+            expansion["sub_current"] += 1
+            if expansion["sub_current"] < len(expansion["sub_steps"]):
+                # 子链还有后续步骤 → 继续子链
+                sub_step = expansion["sub_steps"][expansion["sub_current"]]
+                sub_owner = expansion.get("sub_owner", chain_owner)
+                state["expansion"] = expansion
+                _save_state(task_id, state)
+                return _build_step_result(
+                    sub_step,
+                    sub_owner,
+                    expansion["anchor_step_idx"],
+                    expansion["sub_skills"],
+                    state.get("context", {}),
+                    task_id=expansion["sub_task_id"],
+                    expansion=expansion,
+                )
+            else:
+                # 子链执行完毕
+                parent_step = chain_def[expansion["anchor_step_idx"]]
+                if parent_step.get("loop") and parent_step.get("interactive"):
+                    # loop + interactive：保持 expansion 并询问用户
+                    state["expansion"] = expansion
+                    _save_state(task_id, state)
+                    return {
+                        "status": "NEEDS_CONTEXT",
+                        "step_idx": expansion["anchor_step_idx"],
+                        "agent": parent_step.get("agent", chain_owner),
+                        "goal": parent_step.get("goal", ""),
+                        "need": "用户确认",
+                        "question": (
+                            f"子链 {expansion.get('sub_task_id')} 已完成。"
+                            "还有任务吗？(y/n)"
+                        ),
+                        "expansion": expansion,
+                    }
+                else:
+                    # 清除 expansion，继续父链下一步
+                    del state["expansion"]
+                    _save_state(task_id, state)
+                    # 不提前 return — 自然 fall through 到父链推进逻辑
+
+        # ── Checkpoint：记录当前已完成步骤及关键状态 ──
+        checkpoint = {
+            "step_idx": step_idx,
+            "completed_outputs": state.get("completed_outputs", ""),
+            "spec_retry": state.get("spec_retry", 0),
+            "quality_retry": state.get("quality_retry", 0),
+            "concerns": state.get("concerns", []),
+            "total_iterations": state.get("total_iterations", 0),
+            "context_diff_path": state.get("context", {}).get("diff_path"),
+            "context_last_output": state.get("context", {}).get("last_output"),
+        }
+        state["last_checkpoint"] = checkpoint
+        _save_checkpoint(task_id, checkpoint)
 
         # 防御检查：RETRY 上下文中缺少 target_step_idx
         if last_result.get("target_step_idx") is None and state["context"].get("retry_type"):
@@ -1168,7 +1625,11 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
             state["current_step"] = last_result["target_step_idx"]
             _save_state(task_id, state)
             step = chain_def[state["current_step"]]
-            return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}), task_id=task_id)
+            result = _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}), task_id=task_id)
+            if "expansion" in result:
+                state["expansion"] = result["expansion"]
+                _save_state(task_id, state)
+            return result
 
         # ── Skip Threshold 检查：下一步是否应跳过 ──
         next_step_idx = step_idx + 1
@@ -1192,9 +1653,138 @@ def advance(task_id: str, chain_def: list, chain_step_skills: dict,
 
         _save_state(task_id, state)
         step = chain_def[state["current_step"]]
-        return _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}), task_id=task_id)
+        result = _build_step_result(step, chain_owner, state["current_step"], chain_step_skills, state.get("context", {}), task_id=task_id)
+        if "expansion" in result:
+            state["expansion"] = result["expansion"]
+            _save_state(task_id, state)
+        return result
 
     return {"status": "ERROR", "diagnosis": f"未处理的状态: {status}"}
+
+
+def _rescue(task_id: str, step_idx: int | None = None):
+    """跳过当前阻塞的 step，直接进入下一步或指定 step。
+
+    参数:
+        task_id: 任务标识符
+        step_idx: 可选，指定跳转到哪个 step（0-based）。默认跳到下一步。
+
+    返回:
+        新的 state 字典，current_step 指向跳转后的 step。
+    """
+    try:
+        _sanitize_task_id(task_id)
+    except ValueError as e:
+        return {"status": "ERROR", "diagnosis": str(e)}
+
+    state = _load_state(task_id)
+    if state is None:
+        return {"status": "ERROR", "diagnosis": f"state 不存在或已损坏 (task_id={task_id})"}
+
+    current_step = state.get("current_step", 0)
+    target_step = (current_step + 1) if step_idx is None else step_idx
+
+    # 记录救援信息
+    rescue_record = {
+        "rescue_skip": True,
+        "rescued_at": __import__("time").time(),
+        "from_step": current_step,
+        "to_step": target_step,
+        "message": f"人工介入: rescue from step {current_step} to step {target_step}",
+    }
+    state.setdefault("rescue_log", []).append(rescue_record)
+    state["current_step"] = target_step
+    # 清除 PAUSED 状态（rescue 隐含恢复执行）
+    if state.get("status") == "PAUSED":
+        state.pop("status", None)
+
+    _save_state(task_id, state)
+    state["_rescue_action"] = rescue_record
+    return state
+
+
+def _kill(task_id: str):
+    """立即终止整个链。
+
+    设置 state 状态为 KILLED，返回所有已完成步骤的 result 和产出物。
+    不保存 checkpoint（手动终止不需要恢复）。
+
+    参数:
+        task_id: 任务标识符
+
+    返回:
+        dict: 包含 status=KILLED, completed_steps, completed_outputs
+    """
+    try:
+        _sanitize_task_id(task_id)
+    except ValueError as e:
+        return {"status": "ERROR", "diagnosis": str(e)}
+
+    state = _load_state(task_id)
+    if state is None:
+        return {"status": "ERROR", "diagnosis": f"state 不存在或已损坏 (task_id={task_id})"}
+
+    # 收集已完成步骤的结果
+    completed_steps = state.get("completed_steps", [])
+    completed_outputs = state.get("completed_outputs", [])
+
+    # 设置 KILLED 状态
+    state["status"] = "KILLED"
+    state["killed_at"] = __import__("time").time()
+    state.setdefault("rescue_log", []).append({
+        "kill": True,
+        "killed_at": __import__("time").time(),
+        "message": "人工介入: chain killed",
+    })
+
+    _save_state(task_id, state)
+
+    return {
+        "status": "KILLED",
+        "task_id": task_id,
+        "completed_steps": completed_steps,
+        "completed_outputs": completed_outputs,
+        "current_step": state.get("current_step", 0),
+        "diagnosis": "Chain manually terminated via kill action",
+    }
+
+
+def _pause(task_id: str):
+    """暂停链执行。
+
+    设置 state 状态为 PAUSED，后续 advance() 调用检测到 PAUSED 状态直接返回 Blocked。
+
+    参数:
+        task_id: 任务标识符
+
+    返回:
+        dict: 包含 status=PAUSED, current_step
+    """
+    try:
+        _sanitize_task_id(task_id)
+    except ValueError as e:
+        return {"status": "ERROR", "diagnosis": str(e)}
+
+    state = _load_state(task_id)
+    if state is None:
+        return {"status": "ERROR", "diagnosis": f"state 不存在或已损坏 (task_id={task_id})"}
+
+    state["status"] = "PAUSED"
+    state["paused_at"] = __import__("time").time()
+    state.setdefault("rescue_log", []).append({
+        "pause": True,
+        "paused_at": __import__("time").time(),
+        "message": "人工介入: chain paused",
+    })
+
+    _save_state(task_id, state)
+
+    return {
+        "status": "PAUSED",
+        "task_id": task_id,
+        "current_step": state.get("current_step", 0),
+        "diagnosis": "Chain manually paused — advance() will return Blocked until rescue or kill",
+    }
 
 
 def main():
@@ -1212,7 +1802,9 @@ def main():
         SystemExit(1): 参数缺失、JSON 解析失败、task_id 非法或 step_idx 越界时退出
     """
     parser = argparse.ArgumentParser(description="Chain 编排引擎")
-    parser.add_argument("action", choices=["advance", "start", "run", "verify"])
+    parser.add_argument("action",
+                        help="可用命令: advance, start, run, verify, rescue/恢复/跳过/继续/skip, "
+                             "kill/终止/结束/停止/cancel, pause/暂停/停")
     parser.add_argument("--task_id", required=True)
     parser.add_argument("--step_idx", default=None, type=int,
                         help="step 索引（verify action 必填）")
@@ -1231,6 +1823,27 @@ def main():
     parser.add_argument("--dry-run", action="store_true", default=False, dest="dry_run",
                         help="dry-run 模式：不加载/不修改状态，直接返回当前 step 的合法 status 列表")
     args = parser.parse_args()
+
+    # 中文别名映射 -> 标准 action 名
+    ACTION_ALIASES = {
+        "恢复": "rescue", "跳过": "rescue", "继续": "rescue",
+        "skip": "rescue",
+        "终止": "kill", "结束": "kill", "停止": "kill",
+        "cancel": "kill",
+        "暂停": "pause", "停": "pause",
+    }
+    STANDARD_ACTIONS = {"advance", "start", "run", "verify", "rescue", "kill", "pause"}
+
+    if args.action in ACTION_ALIASES:
+        args.action = ACTION_ALIASES[args.action]
+    elif args.action not in STANDARD_ACTIONS:
+        aliases_help = ", ".join(f"{k}(={v})" for k, v in ACTION_ALIASES.items())
+        print(json.dumps({
+            "status": "ERROR",
+            "diagnosis": f"未知 action '{args.action}'。可用命令: advance, start, run, verify, "
+                         f"rescue(恢复/跳过/继续/skip), kill(终止/结束/停止/cancel), pause(暂停/停)",
+        }, ensure_ascii=False))
+        sys.exit(1)
 
     # 在 main 入口净化 task_id
     try:
@@ -1297,6 +1910,15 @@ def main():
 
         step = chain_def[args.step_idx]
         result = run_verification(step)
+
+    elif args.action == "rescue":
+        result = _rescue(args.task_id, step_idx=args.step_idx)
+
+    elif args.action == "kill":
+        result = _kill(args.task_id)
+
+    elif args.action == "pause":
+        result = _pause(args.task_id)
 
     else:
         # advance (原有行为，保持向后兼容)

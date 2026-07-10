@@ -1,5 +1,5 @@
 chain_name: debugger-chain
-chain_keywords: [调试管线, bug诊断, debug-chain, 排错, diagnosing-bugs, 诊断bug, diagnosing bugs, 修 bug]
+chain_keywords: [调试管线, bug诊断, debug-chain, 排错, diagnosing-bugs, 诊断bug, diagnosing bugs, 修 bug, 修bug, 修个bug, 修个 bug, 修個bug, 修個 bug]
 description: "Bug 诊断管线 — 交互式选择调试深度后执行对应路径"
 owner: error-analyst
 steps:
@@ -8,6 +8,10 @@ steps:
     goal: "选择调试深度 — ①快速修复(直接修+回归) / ②完整诊断(6步全流程) / ③先核实(triage前置核实)"
     interactive: true
     keywords: [choose-depth, debug-depth]
+    jump_map:
+      ①: {action: goto, step: 5, label: "直接跳到 Phase 5 修复+回归"}
+      ②: {action: goto, step: 1, label: "从 Phase 1 开始完整诊断"}
+      ③: {action: chain, target: triage-chain, label: "转 triage 核实"}
 
   # ── 路径 ①②③：回路 → 复现 → 最小化 ──
   - agent: error-analyst
@@ -65,3 +69,4 @@ chain_step_skills:
   error-analyst@3: []                      # Phase 4: 插桩
   error-analyst@4: [requesting-code-review] # Phase 5: 修复+回归
   error-analyst@5: []                      # Phase 6: 清理
+  error-analyst@6: []

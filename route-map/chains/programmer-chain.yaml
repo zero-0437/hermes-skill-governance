@@ -1,6 +1,6 @@
 chain_name: programmer-chain
 chain_keywords: [编码管线, p-chain, parallel-review, 双轴审查, 开发管线]
-description: "编码管线 — TDD实现→spec评审→质量评审→并行code-review→验证门控→收尾"
+description: "编码管线 — TDD实现→双评审→验证门控→收尾"
 owner: programmer
 steps:
   - agent: programmer
@@ -10,30 +10,13 @@ steps:
       - type: test
         description: "所有测试通过"
         verify_command: "uv run pytest -x"
-  - agent: error-analyst
-    goal: spec 合规评审
-    keywords: [spec-review, verify, compliance]
+  - agent: dual-review
+    goal: 三轴双评审（spec 合规 + 代码质量 + 架构）
+    keywords: [dual-review, 双评审]
     completion_contract:
       - type: script
-        description: "评审报告文件存在"
-        verify_command: "test -f review_report.md"
-  - agent: programmer
-    goal: 代码质量评审
-    keywords: [quality-review, code-review, audit]
-    completion_contract:
-      - type: test
-        description: "所有测试通过"
-        verify_command: "uv run pytest -x"
-  - type: parallel
-    keywords: [并行审查, cross-check, 双路质检]
-    branches:
-      - agent: error-analyst
-        goal: "Standards 审查：检查代码规范和代码坏味道"
-        keywords: [standards, smell, conventions]
-      - agent: programmer
-        goal: "Spec 审查：检查实现是否匹配 spec/PRD"
-        keywords: [spec-check, impl-review, match]
-    join_strategy: separate
+        description: "双评审完成"
+        verify_command: "test -f review_report.md || test -f quality_report.md || test -f architecture_report.md"
   - agent: reality-checker
     goal: verification-before-completion — 运行测试+curl验证+断言检查
     keywords: [verification, validate, test, 验证门控]
@@ -54,8 +37,6 @@ steps:
         verify_command: "git status --porcelain | head -5"
 chain_step_skills:
   programmer@0: [test-driven-development]
-  programmer@1: []                         # Step 1: spec 合规评审 by error-analyst
-  programmer@2: [receiving-code-review]
-  programmer@3: [codebase-inspection]
-  programmer@4: [verification, testing]
-  programmer@5: [finishing-a-development-branch]
+  programmer@1: [code-review, codebase-inspection, receiving-code-review]
+  programmer@2: [verification, testing]
+  programmer@3: [finishing-a-development-branch]

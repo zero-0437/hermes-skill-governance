@@ -21,31 +21,15 @@ steps:
     goal: 按拆解结果逐个实现代码
     keywords: [implement, build, execute, code]
     batch: true
-  - agent: error-analyst
-    goal: spec 合规评审
-    keywords: [spec-review, spec-check, compliance, 合规审查]
+  - agent: dual-review
+    goal: 三轴双评审（spec 合规 + 代码质量 + 架构）
+    keywords: [dual-review, 双评审]
     completion_contract:
       - type: script
-        description: "合规评审报告文件存在"
-        verify_command: "test -f review.md"
-  - agent: programmer
-    goal: 代码质量评审
-    keywords: [quality-review, code-review, audit, 质量审计]
-    completion_contract:
-      - type: script
-        description: "质量评审报告文件存在"
-        verify_command: "test -f quality-report.md"
-  - agent: data-analyst
-    goal: "Architecture 轴评审 — 模块边界/接口一致性/ADR合规/依赖方向/模式一致性/测试seam质量/scope creep检测"
-    keywords: [architecture-review, adr, module-boundary, dependency]
-    completion_contract:
-      - type: script
-        description: "架构评审报告文件存在"
-        verify_command: "test -f architecture_report.md"
+        description: "双评审完成"
+        verify_command: "test -f review_report.md || test -f quality_report.md || test -f architecture_report.md"
 chain_step_skills:
   pm-agent@0: [writing-plans]
   pm-agent@1: [writing-plans]
   pm-agent@2: [test-driven-development]
-  pm-agent@3: [requesting-code-review]
-  pm-agent@4: [requesting-code-review, receiving-code-review]
-  pm-agent@5: [architecture-review, codebase-inspection]
+  pm-agent@3: [code-review, receiving-code-review, architecture-review, codebase-inspection]

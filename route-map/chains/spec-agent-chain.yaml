@@ -3,7 +3,7 @@
 # 任何 agent 需要此流程时可在 index.yaml 的 chain_ref 中引用。
 chain_name: spec-agent-chain
 chain_keywords: [新项目管线, spec-chain, prd管线, 需求分析管线]
-description: "新项目管线 — 需求分析→制定计划→任务拆解→批量实现→并行审查→验证门控→收尾"
+description: "新项目管线 — 需求分析→制定计划→任务拆解→批量实现→双评审→验证门控→收尾"
 owner: spec-agent
 steps:
   - agent: spec-agent
@@ -31,16 +31,13 @@ steps:
     goal: 按拆解后的任务逐个实现
     keywords: [implement, build, execute]
     batch: true
-  - type: parallel
-    keywords: [并行审查, cross-check, 双路质检]
-    branches:
-      - agent: error-analyst
-        goal: "Standards 审查：检查代码规范和代码坏味道"
-        keywords: [standards, smell, conventions]
-      - agent: programmer
-        goal: "Spec 审查：检查实现是否匹配 spec/PRD"
-        keywords: [spec-check, impl-review, match]
-    join_strategy: separate
+  - agent: dual-review
+    goal: 三轴双评审（spec 合规 + 代码质量 + 架构）
+    keywords: [dual-review, 双评审]
+    completion_contract:
+      - type: script
+        description: "双评审完成"
+        verify_command: "test -f review_report.md || test -f quality_report.md || test -f architecture_report.md"
   - agent: reality-checker
     goal: verification-before-completion — 运行测试+curl验证+断言检查
     keywords: [verification, validate, test, 验证门控]
@@ -64,6 +61,6 @@ chain_step_skills:
   spec-agent@1: [writing-plans]
   spec-agent@2: [architecture-integrity-check]
   spec-agent@3: []                         # Step 3: 批量实现 by programmer
-  spec-agent@4: []                         # Step 4: 并行审查（skills in branches）
+  spec-agent@4: [code-review, codebase-inspection, receiving-code-review]
   spec-agent@5: [verification-before-completion]
   spec-agent@6: [finishing-a-development-branch]
