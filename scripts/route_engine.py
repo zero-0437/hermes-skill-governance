@@ -7,7 +7,16 @@ route_engine.py — 纯 Python 路由引擎
 import json
 import os
 import re
+import sys as _sys
 import yaml
+
+# ── sys.path 补丁：确保 scripts/ 目录和父级目录可访问 ──
+_SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPTS_DIR not in _sys.path:
+    _sys.path.insert(0, _SCRIPTS_DIR)
+_PARENT_DIR = os.path.dirname(_SCRIPTS_DIR)
+if _PARENT_DIR not in _sys.path:
+    _sys.path.insert(0, _PARENT_DIR)
 
 from chain_config import (
     ROUTE_MAP_DIR,
@@ -641,12 +650,32 @@ from route_logger import _rotate_log, log_route  # noqa: E402, F401
 
 
 # ── 命令行入口 ─────────────────────────────────────────────────────
+def _cmd_checkers(args) -> None:
+    """列出所有已注册 checker。"""
+    from checker_engine import list_checkers
+
+    all_checkers = list_checkers()
+    if not all_checkers:
+        print("没有已注册的 checker。")
+        return
+
+    print(f"已注册 {len(all_checkers)} 个 checker:\n")
+    for c in all_checkers:
+        print(f"  {c['name']}")
+        if c.get("doc"):
+            print(f"    说明: {c['doc']}")
+        if c.get("params"):
+            print(f"    参数: {', '.join(f'{k}={v}' for k, v in c['params'].items())}")
+        print()
+
+
 def main(argv: list[str] | None = None) -> None:
     """CLI 入口：接收用户输入文本，输出路由结果 JSON。
 
     用法：
         route_engine.py <用户输入文本>
         route_engine.py --skills <agent_name>
+        route_engine.py checkers
     """
     import argparse
     import sys
@@ -660,6 +689,11 @@ def main(argv: list[str] | None = None) -> None:
                         help="查询 Agent 的技能列表")
 
     parsed = parser.parse_args(argv if argv is not None else sys.argv[1:])
+
+    # ── checkers 子命令 ──
+    if parsed.input and parsed.input[0] == "checkers":
+        _cmd_checkers(parsed)
+        return
 
     if parsed.skills:
         agent_name = parsed.skills[0]

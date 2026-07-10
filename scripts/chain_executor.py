@@ -45,6 +45,9 @@ _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPTS_DIR not in _sys.path:
     _sys.path.insert(0, _SCRIPTS_DIR)
 
+# Checker engine for structured completion verification
+from checker_engine import run_check, run_shell
+
 # briefer — 共享 brief 文件写入工具
 try:
     from briefer import (
@@ -65,6 +68,14 @@ except ImportError:
     def write_loop_item_brief(*a, **kw): return ""
     def get_brief_path(task_id, step_idx=0, suffix=""): return ""
     def ensure_brief_dir(): return
+
+# ── Shell 命令白名单（用于 pipe 模式安全校验）──
+SHELL_WHITELIST = frozenset({
+    "git", "ls", "cat", "head", "tail", "echo", "find", "grep", "test",
+    "sort", "wc", "diff", "cut", "tr", "uniq", "which", "dirname", "basename",
+    "pwd", "date", "printf", "env", "mkdir", "touch", "cp", "mv", "rm",
+})
+
 from chain_config import SCRIPT_DIR, load_yaml_safe, load_chain, load_index
 
 # ── 路径计算 ────────────────────────────────────
@@ -690,7 +701,8 @@ def run_chain(task_id: str, chain_agent: str, last_result: dict):
 def run_verification(step: dict) -> dict:
     """执行 step 的 completion_contract 验证。
 
-    检查 step 中是否有 completion_contract 字段，如果有则逐个执行 verify_command。
+    支持新格式（check 字段 → run_check）和旧格式（verify_command → run_shell）。
+    优先检查 check 字段，若无则降级到 verify_command。
 
     返回:
         {status: "VERIFIED"|"FAILED"|"NO_CONTRACT", results: [...]}
@@ -703,95 +715,88 @@ def run_verification(step: dict) -> dict:
     all_passed = True
 
     for item in contract:
-        cmd = item.get("verify_command", "")
-        cmd_type = item.get("type", "unknown")
+        cmd_type = item.get("type", "assertion")
         description = item.get("description", "")
+        check_name = item.get("check")
 
-        if not cmd:
-            results.append({
-                "type": cmd_type,
-                "description": description,
-                "exit_code": -1,
-                "passed": False,
-                "error": "verify_command 为空",
-            })
-            all_passed = False
+        # ── 新格式：check 字段 → run_check ──
+        if check_name:
+            params = item.get("params", {})
+            try:
+                result = run_check(check_name, **params)
+                passed = result["passed"]
+                results.append({
+                    "type": cmd_type,
+                    "description": description,
+                    "check": check_name,
+                    "params": params,
+                    "passed": passed,
+                    "details": result["details"],
+                    "extra": result.get("extra", {}),
+                })
+            except KeyError as e:
+                results.append({
+                    "type": cmd_type,
+                    "description": description,
+                    "check": check_name,
+                    "passed": False,
+                    "error": str(e),
+                })
+                passed = False
+            except Exception as e:
+                results.append({
+                    "type": cmd_type,
+                    "description": description,
+                    "check": check_name,
+                    "passed": False,
+                    "error": str(e),
+                })
+                passed = False
+            if not passed:
+                all_passed = False
             continue
 
-        try:
-            # 判断命令是否需要 shell 特性（管道、重定向等）
-            needs_shell = any(op in cmd for op in ("|", ">", "<", ";&"))
-            if needs_shell:
-                # 管道命令: 按管道符分段，每段只检查第一个命令名
-                allowed = True
-                blocked_cmd = ""
-                segments = cmd.split("|")
-                for seg in segments:
-                    seg = seg.strip()
-                    if not seg:
-                        continue
-                    first_token = seg.split()[0]
-                    base_cmd = first_token.split("/")[-1]
-                    if base_cmd not in VERIFY_COMMAND_BASENAMES:
-                        allowed = False
-                        blocked_cmd = base_cmd
-                        break
-                if not allowed:
+        # ── 旧格式：verify_command → run_shell ──
+        cmd = item.get("verify_command", "")
+        if cmd:
+            # Shell 命令白名单校验（仅限 pipe 模式）
+            if "|" in cmd or ";" in cmd or "&&" in cmd:
+                first_cmds = [part.strip().split()[0] for part in cmd.replace("&&", "|").replace(";", "|").split("|") if part.strip()]
+                blocked = [c for c in first_cmds if c not in SHELL_WHITELIST]
+                if blocked:
                     results.append({
                         "type": cmd_type,
                         "description": description,
-                        "exit_code": -1,
+                        "verify_command": cmd,
                         "passed": False,
-                        "error": f"命令 '{blocked_cmd}' 不在白名单 {sorted(VERIFY_COMMAND_BASENAMES)}",
+                        "error": f"命令不在白名单: {', '.join(blocked)}",
                     })
                     all_passed = False
                     continue
-                cp = subprocess.run(
-                    cmd,
-                    shell=True,
-                    capture_output=True,
-                    timeout=VERIFICATION_TIMEOUT,
-                    text=True,
-                )
-            else:
-                # 简单命令: shlex.split + shell=False
-                cmd_parts = shlex.split(cmd)
-                cp = subprocess.run(
-                    cmd_parts,
-                    shell=False,
-                    capture_output=True,
-                    timeout=VERIFICATION_TIMEOUT,
-                    text=True,
-                )
-            passed = cp.returncode == 0
-            results.append({
+            result = run_shell(cmd)
+            res_item = {
                 "type": cmd_type,
                 "description": description,
-                "exit_code": cp.returncode,
-                "passed": passed,
-                "stdout": cp.stdout[:MAX_OUTPUT_LENGTH] if cp.stdout else "",
-                "stderr": cp.stderr[:MAX_OUTPUT_LENGTH] if cp.stderr else "",
-            })
-            if not passed:
+                "verify_command": cmd,
+                "passed": result["passed"],
+                "details": result["details"],
+                "exit_code": result.get("extra", {}).get("exit_code", -1),
+            }
+            if not result["passed"]:
+                res_item["error"] = result["details"]
+            results.append(res_item)
+            if not result["passed"]:
                 all_passed = False
-        except subprocess.TimeoutExpired:
-            results.append({
-                "type": cmd_type,
-                "description": description,
-                "exit_code": -1,
-                "passed": False,
-                "error": f"Command timed out after {VERIFICATION_TIMEOUT}s",
-            })
-            all_passed = False
-        except Exception as e:
-            results.append({
-                "type": cmd_type,
-                "description": description,
-                "exit_code": -1,
-                "passed": False,
-                "error": str(e),
-            })
-            all_passed = False
+            continue
+
+        # ── 既无 check 也无 verify_command ──
+        results.append({
+            "type": cmd_type,
+            "description": description,
+            "passed": False,
+            "error": "既无 check 字段也无 verify_command 字段",
+        })
+        all_passed = False
 
     status = STATUS_VERIFIED if all_passed else STATUS_VERIFICATION_FAILED
     return {"status": status, "results": results}
@@ -1027,12 +1032,15 @@ def _handle_batch_complete(task_id: str, state: dict, chain_def: list,
     if verification_result["status"] == STATUS_VERIFICATION_FAILED:
         _save_state(task_id, state)
         return {
-            "status": STATUS_VERIFICATION_FAILED,
+            "status": "BLOCKED",
             "step_idx": step_idx,
             "agent": chain_def[step_idx].get("agent", ""),
             "goal": chain_def[step_idx].get("goal", ""),
+            "blocked_reason": "completion_contract_verification_failed",
             "verification_results": verification_result["results"],
             "diagnosis": f"Batch step {step_idx} verification failed",
+            "ask_user": True,
+            "options": ["skip", "retry", "abort"],
         }
     _save_state(task_id, state)
     state["current_step"] += 1
@@ -1072,12 +1080,15 @@ def _handle_branch_complete(task_id: str, state: dict, chain_def: list,
     if verification_result["status"] == STATUS_VERIFICATION_FAILED:
         _save_state(task_id, state)
         return {
-            "status": STATUS_VERIFICATION_FAILED,
+            "status": "BLOCKED",
             "step_idx": step_idx,
             "agent": chain_def[step_idx].get("agent", ""),
             "goal": chain_def[step_idx].get("goal", ""),
+            "blocked_reason": "completion_contract_verification_failed",
             "verification_results": verification_result["results"],
             "diagnosis": f"Branches step {step_idx} verification failed",
+            "ask_user": True,
+            "options": ["skip", "retry", "abort"],
         }
     _save_state(task_id, state)
     state["current_step"] += 1
